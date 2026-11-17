@@ -27,6 +27,14 @@ disk_yuzde = 90          # % — disk bu doluluğu geçince bir kez bildirim gel
 # Hook'lar: deploy/claude_hooks.py kur   (kaldırmak için: deploy/claude_hooks.py kaldir)
 acik = true
 bildir_sure_sn = 20      # bundan kısa süren işler bitince bildirim gelmez
+kullanim = true          # her hesabın 5 saatlik penceredeki token kullanımı (yüzde: son 7 günün en yoğun penceresine göre)
+
+[git]
+# Push / commit edilmemiş iş (Geliştirici sayfası, GitHub kutusunun altı). Klasörlerin bir alt seviyesindeki depolar;
+# yalnızca son `gun` gün içinde dokunulanlar sayılır.
+acik = true
+klasorler = ["/mnt/veri/yazilim"]
+gun = 7
 
 [komut]
 # fish'te uzun süren komut bitince bildirim (deploy/pc-panel.fish → ~/.config/fish/conf.d/)

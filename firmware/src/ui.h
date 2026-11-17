@@ -26,6 +26,8 @@ bool ui_set_warn(const char *text);       // "" → uyarı yok; yeni bir uyarı 
 void ui_update_cc(JsonObjectConst o);   // Claude Code oturumları (+ üst şerit / kilit ekranı göstergesi)
 void ui_update_gh(JsonObjectConst o);   // GitHub Actions, PR, bildirim
 void ui_update_srv(JsonObjectConst o);  // sunucu sağlığı
+void ui_update_cu(JsonObjectConst o);   // Claude kullanımı (hesap başına 5 sa penceresi)
+void ui_update_git(JsonObjectConst o);  // push / commit edilmemiş iş
 void ui_set_lock_clock(bool on);          // PC kilitliyken büyük saat ekranı
 
 // main.cpp'de tanımlı: karttan bilgisayara komut gönderir

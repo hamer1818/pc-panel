@@ -30,17 +30,21 @@ from .media import MediaWatcher
 from .notify import NotificationWatcher
 from .claude import ClaudeTracker, fmt_dur
 from .github import GhError, GitHubWatcher
+from .gitwatch import scan as git_scan, summary_text as git_summary
 from .olay import SOCK_PATH
-from .protocol import (cc_message, cfg_message, gh_message, media_message, notif_message, srv_message, stat_message,
-                       tiles_message, vol_message)
+from .protocol import (cc_message, cfg_message, cu_message, gh_message, git_message, media_message, notif_message,
+                       srv_message, stat_message, tiles_message, vol_message)
 from .servers import ServerWatcher
 from .system import SystemCollector
+from .usage import UsageTracker
 
 HB_TIMEOUT_S = 5.0
 ART_MAX_RETRY = 3
 MEDIA_COMMANDS = {"play_pause", "play", "pause", "next", "prev", "seek_rel", "seek_abs"}
 NOTIF_DEDUP_S = 3.0
 CC_REFRESH_S = 10  # Claude oturum sürelerini bu aralıkla tazele
+USAGE_EVERY_S = 60
+GIT_EVERY_S = 300
 
 
 def log(msg: str) -> None:
@@ -67,7 +71,7 @@ async def serve(args: argparse.Namespace, media: MediaWatcher) -> int:
 
     # --- Ayarlardan ve geliştirici kaynaklarından gelenler: bağlantı ya da ayar değişince yeniden gönder ---
     ui_state = {"sent": None, "locked": False}
-    dev = {"gh": gh_message(None, "yükleniyor"), "srv": None, "wake": asyncio.Event()}
+    dev = {"gh": gh_message(None, "yükleniyor"), "srv": None, "cu": None, "git": None, "wake": asyncio.Event()}
     claude = ClaudeTracker()
     servers = ServerWatcher()
 
@@ -81,8 +85,9 @@ async def serve(args: argparse.Namespace, media: MediaWatcher) -> int:
         send(cfg_message(s))
         send(cc_message(claude.items()))
         send(dev["gh"])
-        if dev["srv"]:
-            send(dev["srv"])
+        for k in ("srv", "cu", "git"):
+            if dev[k]:
+                send(dev[k])
         ui_state["sent"] = key
 
     def push_notif(title: str, body: str, app: str = "PC Panel", lvl: str = "info") -> None:
@@ -188,6 +193,32 @@ async def serve(args: argparse.Namespace, media: MediaWatcher) -> int:
                 await asyncio.wait_for(dev["wake"].wait(), delay)  # ayar değişince beklemeden yenile
             except asyncio.TimeoutError:
                 pass
+
+    async def usage_loop() -> None:
+        tracker = await asyncio.to_thread(UsageTracker)
+        while True:
+            if config.settings.claude_usage:
+                try:
+                    dev["cu"] = cu_message(await asyncio.to_thread(tracker.poll))
+                except Exception as e:  # kayıt biçimi değişse bile servis düşmesin
+                    log(f"claude kullanımı okunamadı: {e}")
+            else:
+                dev["cu"] = cu_message([])
+            if link.connected and dev["cu"]:
+                send(dev["cu"])
+            await asyncio.sleep(USAGE_EVERY_S)
+
+    async def git_loop() -> None:
+        while True:
+            s = config.settings
+            if s.git_on:
+                res = await asyncio.to_thread(git_scan, s.git_roots, s.git_days)
+                dev["git"] = git_message(*git_summary(res))
+            else:
+                dev["git"] = git_message("", 0)
+            if link.connected:
+                send(dev["git"])
+            await asyncio.sleep(GIT_EVERY_S)
 
     async def servers_loop() -> None:
         while True:
@@ -342,7 +373,8 @@ async def serve(args: argparse.Namespace, media: MediaWatcher) -> int:
         loop.add_signal_handler(sig, stop.set)
 
     tasks = [asyncio.create_task(c) for c in (link.maintain(), producer(), consumer(), watchdog(),
-                                              notifier.run(), event_server(), github_loop(), servers_loop())]
+                                              notifier.run(), event_server(), github_loop(), servers_loop(),
+                                              usage_loop(), git_loop())]
     try:
         await stop.wait()
         log("kapanıyor")
@@ -391,6 +423,8 @@ def check_config() -> int:
     print(f"\nDosya: {CONFIG_PATH}{'' if CONFIG_PATH.exists() else ' (yok — örnek dosya kullanılıyor)'}")
     print(f"Kilit saati: {'açık, ' + (str(s.lock_min) + ' dk' if s.lock_min else 'sürekli') if s.lock_clock else 'kapalı'}")
     print(f"Claude Code: {'açık' if s.claude_on else 'kapalı'} (bitince bildirim: {s.claude_min_s} sn+)")
+    print(f"Claude kullanımı: {'açık' if s.claude_usage else 'kapalı'}")
+    print(f"Git: {'kapalı' if not s.git_on else ', '.join(s.git_roots) + f' (son {s.git_days} gün)'}")
     print(f"Uzun komut: {'açık' if s.cmd_on else 'kapalı'} ({s.cmd_min_s} sn+), hariç: {len(s.cmd_exclude)} program")
     print(f"GitHub: {'kapalı' if not s.gh_on else ', '.join(s.gh_repos) or 'son 6 depo (otomatik)'}, {s.gh_every_s} sn")
     print(f"Sunucular ({len(s.servers)}, {s.srv_every_s} sn): "

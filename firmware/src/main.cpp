@@ -2,7 +2,7 @@
  * PC Panel — kart yazılımı
  *
  * Bilgisayardan seri port (CH343, 921600 baud) ile gelen JSON satırlarını okur, ekranda gösterir;
- * dokunmatik arayüzden bilgisayara komut gönderir. Protokol v1.5: ../docs/02-mimari.md
+ * dokunmatik arayüzden bilgisayara komut gönderir. Protokol v1.6: ../docs/02-mimari.md
  * Arayüz (Faz 4): ui.cpp — Sistem · Medya · Kısayollar.
  *
  * Kart başlatma kodu ESP32_Display_Panel v1.0.4 "lvgl_v8_port" örneğinden alınmıştır (CC0-1.0).
@@ -21,7 +21,7 @@
 using namespace esp_panel::drivers;
 using namespace esp_panel::board;
 
-#define FW_VERSION "0.8.0"
+#define FW_VERSION "0.9.0"
 #define PROTO_VERSION 1
 #define LINK_BAUD 921600
 #define LINK_TIMEOUT_MS 3000
@@ -120,6 +120,10 @@ static void handle_line(char *line, size_t len)
         ui_update_gh(o);
     } else if (strcmp(t, "srv") == 0) {
         ui_update_srv(o);
+    } else if (strcmp(t, "cu") == 0) {
+        ui_update_cu(o);
+    } else if (strcmp(t, "git") == 0) {
+        ui_update_git(o);
     } else if (strcmp(t, "art") == 0) {
         size_t n = doc["n"] | 0;
         if (n == 0) {

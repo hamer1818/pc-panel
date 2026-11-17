@@ -60,6 +60,8 @@ class ClaudeTracker:
             return []
         now = time.monotonic()
         project = os.path.basename(ev.get("cwd", "").rstrip("/")) or "?"
+        if ev.get("acct"):  # ikinci hesap (CLAUDE_CONFIG_DIR=~/.claude-<ad>)
+            project = f"{project} · {ev['acct']}"
         s = self.sessions.get(sid)
         if name == "SessionEnd":
             if self.sessions.pop(sid, None):
@@ -111,4 +113,4 @@ class ClaudeTracker:
     def items(self) -> list[dict]:
         now = time.monotonic()
         ordered = sorted(self.sessions.values(), key=lambda s: (ORDER.get(s.state, 9), -s.since))
-        return [{"p": s.project[:24], "s": s.state, "m": s.msg, "age": int(now - s.since)} for s in ordered]
+        return [{"p": s.project[:32], "s": s.state, "m": s.msg, "age": int(now - s.since)} for s in ordered]

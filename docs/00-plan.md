@@ -162,6 +162,7 @@ işine yarayacak özellikleri istedi (7B).
 - [x] **[CLAUDE]** Olay soketi `$XDG_RUNTIME_DIR/pc-panel.sock` + `pc-panel-olay` aracı (claude / komut / bildir).
 - [x] **[CLAUDE]** Claude Code durumu: hook'lar (`deploy/claude_hooks.py kur|kaldir|durum`), oturum listesi,
       izin isteyince ve uzun iş bitince bildirim, üst şeritte "Claude: N bekliyor", kilit ekranında da.
+- [x] **[CLAUDE]** İkinci Claude hesabı (`~/.claude-hesap2`, `claude2`): hook'lar iki dizine de kuruldu, kartta "proje · hesap2".
 - [x] **[CLAUDE]** fish: 30 sn'den uzun süren komut bitince ✓/✗ bildirim (`deploy/pc-panel.fish`).
 - [x] **[CLAUDE]** GitHub: son Actions çalışmaları, CI bitince / başarısız olunca bildirim, PR ve bildirim sayıları.
 - [x] **[CLAUDE]** Sunucu/site sağlığı: 7 kayıt (iurl.tr, app.iurl.tr, hamza.tr, api.hamza.tr, tulparlang.dev,
@@ -176,6 +177,13 @@ işine yarayacak özellikleri istedi (7B).
       4. Yeni bir fish terminalinde `sleep 31` → 31 sn sonra kartta ✓ bildirimi.
       5. `notify-send -a Deneme "Merhaba" "Kart bildirimi"` → balon kayarak geliyor mu, dokununca kapanıyor mu?
       6. Kilit saati: Meta+L → büyük saat; dokununca saat kalıyor; kilidi açınca panel geri geliyor.
+
+### 7D — Günlük kullanım ekleri (kart 0.9.0, protokol v1.6)
+Kullanıcı "800 özellik değil, her gün kullanacağım şeyler" dedi; yalnızca ikisi seçildi.
+- [x] **[CLAUDE]** Claude kullanım göstergesi: iki hesap için 5 saatlik penceredeki token ve sıfırlanmaya kalan süre
+      (Geliştirici → Claude kutusunun altı). Yüzde, son 7 günün en yoğun penceresine göre.
+- [x] **[CLAUDE]** Push / commit edilmemiş iş satırı (Geliştirici → GitHub kutusunun altı), son 7 günde dokunulan depolar.
+- [ ] **[SEN]** Bir hafta kullan; hiç bakmadığın özellik varsa söyle, kaldıralım.
 
 ### 7C — Sonra (karar verilecek)
 - [ ] Görev çalıştırıcı kutular (çalışıyor → ✓/✗ ve süre, tehlikeli işlerde onay)
@@ -198,4 +206,4 @@ işine yarayacak özellikleri istedi (7B).
 | 4 Arayüz | ✅ bitti (2026-11-17) |
 | 5 Medya | ✅ bitti (2026-11-17); karttan çalar seçimi isteğe bağlı, yapılmadı |
 | 6 Kalıcı kurulum | ✅ bitti (2026-11-17) |
-| 7 Ekstralar | 7A + 7B kodlandı, kart 0.8.0 (2026-11-17) — kullanıcı kontrolü bekliyor; 7C sonra |
+| 7 Ekstralar | 7A + 7B + 7D kodlandı, kart 0.9.0 (2026-11-17) — bir haftalık kullanım; 7C sonra |

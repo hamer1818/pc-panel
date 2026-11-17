@@ -2,6 +2,28 @@
 
 En yeni kayıt en üstte.
 
+## 2026-11-17 — Faz 7D: Claude kullanım göstergesi ve push edilmemiş iş (kart 0.9.0)
+- Kullanıcı yeni fikir listesini fazla buldu; günlük kullanacağı iki özellik seçildi.
+- `usage.py`: iki hesabın kayıtları (8 günde 600 MB + 150 MB) → konum saklayarak artımlı okuma, (mesaj, istek)
+  ile tekilleştirme, ccusage benzeri 5 sa pencereleri. İlk tarama 1,0 sn. Anlık: hesap1 83 K token (en yoğun
+  pencerenin %5'i), 3 sa 52 dk sonra sıfırlanıyor; hesap2'de etkin pencere yok.
+- `gitwatch.py`: /mnt/veri/yazilim altındaki 30 depo, 1,4 sn. İlk denemede 151 gündür dokunulmamış
+  personal-budget-tracker silinmiş bir dosya yüzünden görünüyordu → silinen dosyalar yalnızca depo etkinse sayılıyor.
+  Sonuç: tulpar-engine'de 4 push bekleyen commit; esp32-lcd, kup-kure-savasi, tulpar-engine'de değişiklik.
+- Kart 0.9.0: Claude kutusu 4 oturum satırı + 2 kullanım satırı (ad, çubuk, "83 K · 3 sa 52 dk sonra"); GitHub
+  kutusunun altında PR satırı ve sarı git satırı. RAM %9,0, flash %16,6, uyarısız.
+- Kullanıcı ayar dosyasına `[claude] kullanim` ve `[git]` eklendi (diğer satırlara dokunulmadı).
+- Deneme: `--debug` ile `cu` ve `git` mesajları karta gitti; servis yeniden çalışıyor. Görünüm kullanıcıda.
+
+## 2026-11-17 — Faz 7B ek: ikinci Claude hesabı
+- Kullanıcı Claude'u iki hesapla kullanıyor: `~/.claude` ve `~/.claude-hesap2` (fish `claude2` fonksiyonu,
+  `CLAUDE_CONFIG_DIR`). Hook'lar yalnızca birincisindeydi.
+- `deploy/claude_hooks.py`: dizin verilmezse bütün `~/.claude*` ayar dizinlerini buluyor; varsayılan dışındakilerde
+  `pc-panel-olay claude --hesap hesap2`. Servis oturum adını "proje · hesap2" yapıyor. `claude2` uzun komut
+  hariç listesine eklendi (yoksa kapatınca "uzun komut bitti" bildirimi gelirdi).
+- Kuruldu: iki dizine de 6'şar hook (yedekler: `settings.json.yedek-20261117-185922`). Servis yeniden başlatıldı
+  (açık oturumların durumu bir sonraki olaya kadar kartta görünmez). Deneme: "Tulpar · hesap2: izin bekliyor" geldi.
+
 ## 2026-11-17 — Faz 7B: geliştirici paketi (Claude Code, uzun komut, GitHub, sunucular), hava durumu kaldırıldı
 - Kullanıcı hava durumunu istemedi ve yazılımcı olarak işine yarayacak özellikler istedi. Sunulan 7 fikirden
   1+2+3+4'ü seçti. Plan 7A / 7B / 7C olarak yeniden düzenlendi.

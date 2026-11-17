@@ -1,6 +1,6 @@
 """pc-panel-olay — dışarıdan servise olay bildiren küçük araç (Claude Code hook'ları, fish, kendi betiklerin).
 
-    pc-panel-olay claude                          # Claude Code hook'u: olay JSON'u stdin'den gelir
+    pc-panel-olay claude [--hesap AD]             # Claude Code hook'u: olay JSON'u stdin'den gelir
     pc-panel-olay komut --sure MS --kod N -- METİN # fish: uzun süren komut bitti
     pc-panel-olay bildir "Başlık" ["Gövde"]       # karta bildirim (ör. betik sonunda)
 
@@ -32,7 +32,7 @@ def send(obj: dict) -> bool:
         return False
 
 
-def _claude() -> dict | None:
+def _claude(args: list[str]) -> dict | None:
     try:
         ev = json.loads(sys.stdin.read(1_000_000) or "{}")
     except (ValueError, OSError):
@@ -42,7 +42,8 @@ def _claude() -> dict | None:
     # Yalnızca gereken alanlar (istem metni, araç girdileri vb. gönderilmez)
     return {"k": "claude", "ev": str(ev.get("hook_event_name", "")), "sid": str(ev.get("session_id", "")),
             "cwd": str(ev.get("cwd", "")), "msg": str(ev.get("message", ""))[:200],
-            "ntype": str(ev.get("notification_type", ""))}
+            "ntype": str(ev.get("notification_type", "")),
+            "acct": args[args.index("--hesap") + 1][:16] if "--hesap" in args[:-1] else ""}
 
 
 def _komut(args: list[str]) -> dict | None:
@@ -67,7 +68,7 @@ def main() -> None:
     msg = None
     try:
         if args[:1] == ["claude"]:
-            msg = _claude()
+            msg = _claude(args[1:])
         elif args[:1] == ["komut"]:
             msg = _komut(args[1:])
         elif args[:1] == ["bildir"] and len(args) >= 2:

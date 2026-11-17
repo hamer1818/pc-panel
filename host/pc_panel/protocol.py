@@ -126,6 +126,16 @@ def gh_message(data: dict | None, error: str = "") -> dict:
             "ntf": data["notifications"]}
 
 
+def cu_message(accounts: list[dict]) -> dict:
+    """Claude kullanımı (hesap başına): n ad, txt token ("1,2 M"), pct en yoğun pencereye göre %, rst sıfırlanmaya sn
+    (-1: etkin pencere yok)."""
+    return {"t": "cu", "acc": [{k: a[k] for k in ("n", "txt", "pct", "rst")} for a in accounts[:2]]}
+
+
+def git_message(text: str, count: int) -> dict:
+    return {"t": "git", "txt": text[:180], "n": count}
+
+
 def srv_message(items: list[dict]) -> dict:
     """Sunucular: n ad, ok (1 ayakta / 0 kapalı / -1 henüz bilinmiyor), ms gecikme, ssl kalan gün."""
     return {"t": "srv", "items": items[:8]}

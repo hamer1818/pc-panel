@@ -786,12 +786,16 @@ void build_lock_screen()
 // =====================================================================================
 // 4) Geliştirici (Faz 7B): Claude Code oturumları · GitHub Actions · sunucular
 // =====================================================================================
-constexpr int CC_ROWS = 5, GH_ROWS = 4, SRV_MAX = 8;
+constexpr int CC_ROWS = 4, GH_ROWS = 4, SRV_MAX = 8, CU_MAX = 2;
 struct Row {
     lv_obj_t *dot, *name, *info;
 };
 Row cc_rows[CC_ROWS], gh_rows[GH_ROWS];
-lv_obj_t *cc_count, *cc_empty, *gh_foot, *gh_empty;
+lv_obj_t *cc_count, *cc_empty, *gh_foot, *gh_empty, *git_line;
+struct UsageRow {
+    lv_obj_t *name, *bar, *info;
+};
+UsageRow cu_rows[CU_MAX];
 struct Chip {
     lv_obj_t *box, *dot, *name, *info;
 };
@@ -871,7 +875,20 @@ void build_dev(lv_obj_t *page)
     }
     cc_empty = label(cc, F14, C_FAINT);
     set_text(cc_empty, "Açık oturum yok");
-    lv_obj_set_pos(cc_empty, 16, 100);
+    lv_obj_set_pos(cc_empty, 16, 90);
+    // Kullanım (hesap başına): ad · çubuk (en yoğun 5 sa penceresine göre) · token ve sıfırlanmaya kalan
+    for (int i = 0; i < CU_MAX; i++) {
+        UsageRow &u = cu_rows[i];
+        int y = 182 + i * 22;
+        u.name = label(cc, F12, C_MUTED, "");
+        lv_obj_set_pos(u.name, 16, y);
+        u.bar = bar(cc, 82, y + 5, 110, 6);
+        u.info = label_right(cc, F12, C_MUTED, 364, y, 166);
+        lv_label_set_long_mode(u.info, LV_LABEL_LONG_DOT);
+        lv_obj_add_flag(u.name, LV_OBJ_FLAG_HIDDEN);
+        lv_obj_add_flag(u.bar, LV_OBJ_FLAG_HIDDEN);
+        lv_obj_add_flag(u.info, LV_OBJ_FLAG_HIDDEN);
+    }
 
     lv_obj_t *gh = card(page, 406, 4, 380, 228);
     caption(gh, 16, 14, "GITHUB ACTIONS");
@@ -880,9 +897,13 @@ void build_dev(lv_obj_t *page)
         row_visible(gh_rows[i], false);
     }
     gh_foot = label(gh, F12, C_MUTED, "");
-    lv_obj_set_pos(gh_foot, 16, 198);
+    lv_obj_set_pos(gh_foot, 16, 182);
     lv_obj_set_width(gh_foot, 348);
     lv_label_set_long_mode(gh_foot, LV_LABEL_LONG_DOT);
+    git_line = label(gh, F12, C_FAINT, "");
+    lv_obj_set_pos(git_line, 16, 204);
+    lv_obj_set_width(git_line, 348);
+    lv_label_set_long_mode(git_line, LV_LABEL_LONG_DOT);
     gh_empty = label(gh, F14, C_FAINT);
     set_text(gh_empty, "yükleniyor…");
     lv_obj_set_pos(gh_empty, 16, 100);
@@ -1446,6 +1467,48 @@ void ui_update_srv(JsonObjectConst o)
         lv_obj_add_flag(chips[i].box, LV_OBJ_FLAG_HIDDEN);
     }
     show(srv_empty, n == 0);
+}
+
+void ui_update_cu(JsonObjectConst o)
+{
+    int n = 0;
+    char buf[64];
+    for (JsonObjectConst a : o["acc"].as<JsonArrayConst>()) {
+        if (n >= CU_MAX) {
+            break;
+        }
+        UsageRow &u = cu_rows[n++];
+        int pct = a["pct"] | 0;
+        long rst = a["rst"] | -1L;
+        set_text(u.name, a["n"] | "?");
+        set_bar(u.bar, pct > 100 ? 100 : pct, pct < 60 ? C_ACCENT : pct < 85 ? C_WARN : C_BAD);
+        if (rst < 0) {
+            set_text(u.info, "pencere yok");
+        } else {
+            char left[24];
+            if (rst >= 3600) {
+                snprintf(left, sizeof(left), "%ld sa %ld dk", rst / 3600, rst / 60 % 60);
+            } else {
+                snprintf(left, sizeof(left), "%ld dk", rst / 60);
+            }
+            snprintf(buf, sizeof(buf), "%s · %s sonra", a["txt"] | "0", left);
+            set_text(u.info, buf);
+        }
+        lv_obj_clear_flag(u.name, LV_OBJ_FLAG_HIDDEN);
+        lv_obj_clear_flag(u.bar, LV_OBJ_FLAG_HIDDEN);
+        lv_obj_clear_flag(u.info, LV_OBJ_FLAG_HIDDEN);
+    }
+    for (int i = n; i < CU_MAX; i++) {
+        lv_obj_add_flag(cu_rows[i].name, LV_OBJ_FLAG_HIDDEN);
+        lv_obj_add_flag(cu_rows[i].bar, LV_OBJ_FLAG_HIDDEN);
+        lv_obj_add_flag(cu_rows[i].info, LV_OBJ_FLAG_HIDDEN);
+    }
+}
+
+void ui_update_git(JsonObjectConst o)
+{
+    set_text(git_line, o["txt"] | "");
+    lv_obj_set_style_text_color(git_line, (o["n"] | 0) ? C_WARN : C_FAINT, 0);
 }
 
 void ui_set_lock_clock(bool on)

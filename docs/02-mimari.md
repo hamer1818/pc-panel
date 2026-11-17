@@ -127,6 +127,15 @@ tekrar gelirse yok sayılır. Disk doluluk uyarısı bir `notif` mesajı olarak 
 | `gh` | `[github] sure_sn` (120 sn) | `ok` 1: `runs` `[{"r":"iurl","w":"Deploy API","s":"fail","b":"main","age":429949}]` (en çok 4; `s`: `ok`/`fail`/`run`/`wait`/`cancel`), `rev` inceleme bekleyen PR, `prs` açık PR'larım, `ntf` okunmamış bildirim · `ok` 0: `err` |
 | `srv` | `[sunucular] sure_sn` (60 sn) | `items` `[{"n":"iurl.tr","ok":1,"ms":240,"ssl":61}]` (en çok 8; `ok` 1 ayakta, 0 kapalı, -1 tek başarısızlık) |
 
+**v1.6 (Faz 7D):**
+| Tip | Ne zaman | Alanlar |
+|-----|----------|---------|
+| `cu` | 60 sn'de bir | `acc` `[{"n":"hesap1","txt":"83 K","pct":5,"rst":13978}]` — 5 sa penceresindeki token (girdi + çıktı + önbelleğe yazma), `pct` son 7 günün en yoğun penceresine göre, `rst` sıfırlanmaya sn (-1: pencere yok) |
+| `git` | 5 dk'da bir | `txt` hazır satır ("Push bekliyor: tulpar-engine (4) · commit edilmemiş: …"), `n` dikkat isteyen depo sayısı |
+
+Kaynaklar: `usage.py` (`~/.claude*/projects/**/*.jsonl`, yalnızca eklenen satırlar okunur, içerik okunmaz),
+`gitwatch.py` (`[git] klasorler` altındaki depolar, `git --no-optional-locks`).
+
 Sunucu "kapalı" ve SSL < 7 gün uyarıları `stat.warn` alanına eklenir (üst şeritte kırmızı).
 
 #### Olay soketi (dışarıdan servise)
@@ -135,7 +144,7 @@ Gönderici: `host/.venv/bin/pc-panel-olay`.
 
 | `k` | Kaynak | Alanlar |
 |-----|--------|---------|
-| `claude` | Claude Code hook'ları (`~/.claude/settings.json`: SessionStart, UserPromptSubmit, PostToolUse, Notification, Stop, SessionEnd) | `ev` olay adı, `sid`, `cwd`, `msg`, `ntype` (istem metni ve araç girdileri gönderilmez) |
+| `claude` | Claude Code hook'ları (`~/.claude/settings.json`: SessionStart, UserPromptSubmit, PostToolUse, Notification, Stop, SessionEnd) | `ev` olay adı, `sid`, `cwd`, `msg`, `ntype`, `acct` hesap etiketi (`~/.claude-<ad>` dizinlerinden gelen hook'larda `--hesap <ad>`; kartta "proje · ad") (istem metni ve araç girdileri gönderilmez) |
 | `cmd` | fish `fish_postexec` (≥ 5 sn süren komutlar; eşik ve hariç liste serviste) | `cmd`, `ms`, `code` |
 | `notif` | `pc-panel-olay bildir "Başlık" "Gövde"` | `title`, `body` |
 

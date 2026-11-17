@@ -2,6 +2,17 @@
 
 Her karar: tarih · karar · düşünülen seçenekler · neden.
 
+## 2026-11-17 · Faz 7D: yalnızca günlük kullanılacak iki ek; paneli büyütmeme kuralı
+- Kullanıcı uzun özellik listesini istemedi: "günlük olarak kullanabileceğim özellikler". Seçilen: Claude kullanım
+  göstergesi ve push edilmemiş iş satırı. Diğer fikirler 7C'de bekliyor; önce bir hafta kullanılıp bakılmayan
+  özellikler kaldırılacak.
+- **Kullanım:** plan sınırı yerelde yok; uydurma yüzde yerine "son 7 günün en yoğun penceresine göre" gösteriliyor.
+  Önbellekten okuma token'ları sayılmıyor (çok büyük, sınırı belirleyen değil). Kayıtlar 600+ MB olabildiği için
+  dosya başına okunan konum saklanıyor; ilk tarama ≈1 sn, sonra yalnızca yeni satırlar.
+- **Git:** yalnızca son 7 günde dokunulan depolar (eski depolardaki yarım işler sürekli uyarı vermesin). Silinen
+  dosyaların zamanı bilinmediği için yalnızca depo yakın zamanda etkinse sayılıyor (eski bir depo yanlışlıkla
+  görünüyordu). Ayrı sayfa ya da bildirim yok, yalnızca bir satır.
+
 ## 2026-11-17 · Faz 7B: geliştirici paketi — Claude Code, uzun komut, GitHub, sunucular
 Kullanıcı yazılımcı; seçtiği dört özellik: 1 Claude Code durumu, 2 uzun komut bildirimi, 3 GitHub, 4 sunucu sağlığı.
 - **Dış olaylar için yerel Unix soketi** (`$XDG_RUNTIME_DIR/pc-panel.sock`, 0600) + `pc-panel-olay` aracı.
@@ -12,6 +23,10 @@ Kullanıcı yazılımcı; seçtiği dört özellik: 1 Claude Code durumu, 2 uzun
   "izin bekliyor" ve "bitti" bilgisi yalnızca hook'larda var. Gönderilen alanlar: olay adı, oturum kimliği, klasör
   ve bildirim metni; istem ve araç girdileri gönderilmiyor. PostToolUse, izin verildikten sonra durumu "çalışıyor"a
   döndürmek için eklendi; her araç çağrısına ≈13 ms ekliyor. "Bitti" bildirimi yalnızca 20 sn'den uzun işlerde geliyor.
+- **İki Claude hesabı:** kullanıcı ikinci hesabı `claude2` (`CLAUDE_CONFIG_DIR=~/.claude-hesap2`) ile açıyor.
+  `claude_hooks.py` dizin verilmezse `~/.claude` ve `~/.claude-*` dizinlerinin hepsine kuruyor; varsayılan dışındakilerde
+  hook `--hesap <ad>` ile çağrılıyor ve kartta oturum "proje · hesap2" diye görünüyor. Oturum kimlikleri hesaplar
+  arasında çakışmadığı için tek liste yeterli. `claude2` uzun komut bildiriminin hariç listesine eklendi.
 - **Uzun komut: fish `fish_postexec`** (`~/.config/fish/conf.d/pc-panel.fish`). fish ≥ 5 sn süren her komutu
   bildiriyor; eşik (30 sn) ve hariç tutulan etkileşimli programlar (editörler, ssh, claude…) serviste. Böylece
   ayarlar fish dosyasına dokunmadan değişebiliyor.

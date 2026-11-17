@@ -58,7 +58,7 @@ class Server:
 
 
 DEFAULT_CMD_EXCLUDE = frozenset({
-    "nvim", "vim", "vi", "nano", "micro", "hx", "ssh", "mosh", "claude", "htop", "btop", "top", "less", "more",
+    "nvim", "vim", "vi", "nano", "micro", "hx", "ssh", "mosh", "claude", "claude2", "htop", "btop", "top", "less", "more",
     "man", "watch", "journalctl", "tail", "yazi", "ranger", "lazygit", "tig", "fish", "zsh", "bash", "tmux",
     "zellij", "python", "python3", "ipython", "node", "psql", "mysql", "sqlite3", "adb", "pio",
 })
@@ -78,6 +78,10 @@ class Settings:
     warn_disk: float = 90
     claude_on: bool = True
     claude_min_s: int = 20
+    claude_usage: bool = True
+    git_on: bool = True
+    git_roots: tuple[str, ...] = ("/mnt/veri/yazilim",)
+    git_days: int = 7
     cmd_on: bool = True
     cmd_min_s: int = 30
     cmd_exclude: frozenset[str] = DEFAULT_CMD_EXCLUDE
@@ -212,6 +216,17 @@ def parse(data: dict) -> tuple[Settings, list[str]]:
     c = data.get("claude", {})
     s.claude_on = bool(c.get("acik", s.claude_on))
     s.claude_min_s = int(_num(c, "bildir_sure_sn", s.claude_min_s, warn, 0, 86400))
+    s.claude_usage = bool(c.get("kullanim", s.claude_usage))
+
+    gt = data.get("git", {})
+    s.git_on = bool(gt.get("acik", s.git_on))
+    s.git_days = int(_num(gt, "gun", s.git_days, warn, 1, 365))
+    roots = gt.get("klasorler")
+    if roots is not None:
+        if isinstance(roots, list) and all(isinstance(x, str) and x for x in roots):
+            s.git_roots = tuple(roots[:5])
+        else:
+            warn.append("git.klasorler bir yazı listesi olmalı")
 
     k = data.get("komut", {})
     s.cmd_on = bool(k.get("acik", s.cmd_on))
