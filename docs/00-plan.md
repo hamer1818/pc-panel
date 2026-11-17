@@ -133,12 +133,13 @@ Karar verilecek içerik listesi:
       bağlantı yoksa arka ışık kapanır; karanlıkta dokununca 20 sn açılır (dokunma düğmelere geçmez).
       Bilgisayarda: KDE kilit sorgusu, SIGTERM/Ctrl+C'de `bye`. Deneme: SIGTERM → çıkış 0, ekran karardı ve
       yeniden bağlanınca açıldı.
-- [ ] **[SEN]** Elle çalışan `pc-panel` varsa kapat (Ctrl+C), sonra servisi kur:
+- [x] **[SEN]** Elle çalışan `pc-panel` varsa kapat (Ctrl+C), sonra servisi kur → kuruldu (enabled, active):
       ```bash
       /mnt/veri/yazilim/esp32-lcd-controller-card/deploy/kur.sh
       ```
-- [ ] **[SEN]** Kilit testi: ekranı kilitle (Meta+L) → kart kararmalı; karta dokun → 20 sn açılmalı; kilidi aç → panel geri gelmeli.
-- [ ] **[SEN]** Bilgisayarı yeniden başlat; panel hiçbir şeye dokunmadan geliyor mu? Kısayollar (Terminal vb.) servisten de çalışıyor mu?
+- [x] **[SEN]** Kilit testi: ekranı kilitle (Meta+L) → kart kararmalı; karta dokun → 20 sn açılmalı; kilidi aç → panel geri gelmeli. → düzgün.
+- [x] **[SEN]** Bilgisayarı yeniden başlat; panel hiçbir şeye dokunmadan geliyor mu? Kısayollar (Terminal vb.) servisten de çalışıyor mu?
+      → düzgün. Günlük: açılış 16:47:07, servis 16:47:31'de kendiliğinden başladı, karta bağlandı, kapağı gönderdi.
 
 **Bitti ölçütü:** yeniden başlatma sonrası hiçbir şeye dokunmadan panel çalışıyor.
 
@@ -162,5 +163,5 @@ Karar verilecek içerik listesi:
 | 3 Protokol | ✅ bitti (2026-11-17) |
 | 4 Arayüz | ✅ bitti (2026-11-17) |
 | 5 Medya | ✅ bitti (2026-11-17); karttan çalar seçimi isteğe bağlı, yapılmadı |
-| 6 Kalıcı kurulum | ⏳ sürüyor — kullanıcının kurulum ve yeniden başlatma testi bekleniyor |
-| 7 Ekstralar | — |
+| 6 Kalıcı kurulum | ✅ bitti (2026-11-17) |
+| 7 Ekstralar | isteğe bağlı — kullanıcı seçecek |

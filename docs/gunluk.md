@@ -12,7 +12,10 @@ En yeni kayıt en üstte.
   dokununca 20 sn açık. RAM %7,7, flash %15,5.
 - Deneme: 8 sn çalıştırıp SIGTERM → "kapanıyor", çıkış kodu 0. Yeniden açınca kart `# ekran acildi` yazdı
   (yani kararmıştı). Her saniye `locked: 0` gönderildi. Kilit testi kullanıcıda: Claude ekranı kilitlemedi.
-- **Sıradaki:** kullanıcı `deploy/kur.sh` ile servisi kuracak, kilit testini ve yeniden başlatma testini yapacak.
+- Kullanıcı testi: **hepsi düzgün**. Servis kuruldu (enabled/active); kilitlenince kart kararıyor, dokununca
+  açılıyor, kilit açılınca geri geliyor. Yeniden başlatma sonrası (açılış 16:47:07) servis 16:47:31'de kendiliğinden
+  başladı ve karta bağlandı; kısayollar servis içinden çalışıyor.
+- **Faz 6 tamamlandı → Faz 0–6, yani ana plan bitti.** Faz 7 isteğe bağlı; kullanıcı seçecek.
 
 ## 2026-11-17 — Faz 5: kapak resmi
 - Protokol v1.2 yazıldı (`02-mimari.md` "Kapak resmi"): başlık satırı + 115.200 bayt RGB565 + CRC-32, kart yanıtı.
