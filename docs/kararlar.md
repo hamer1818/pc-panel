@@ -43,5 +43,18 @@ Her karar: tarih · karar · düşünülen seçenekler · neden.
 - Seçenekler: pipx · pacman paketi (`platformio-core`) · ayrı venv
 - Neden: sudo gerektirmez, PlatformIO'nun kendi standart yolu; pipx sistemde yoktu.
 
+## 2026-11-17 · D-Bus kütüphanesi: dbus-fast (dbus-next yerine)
+- Seçenekler: dbus-next · dbus-fast · dbus-python (C, sistem paketi)
+- Neden: dbus-next 2021'den beri güncellenmiyor; dbus-fast onun bakımı süren, aynı API'li devamı, saf Python
+  olarak da çalışıyor. dbus-python sanal ortama kurulması zahmetli.
+
+## 2026-11-17 · MPRIS için yoklama (polling), sinyal değil
+- Seçenekler: her sn `GetAll` ile yoklama · `PropertiesChanged` sinyallerini dinleme
+- Neden: yoklama daha basit ve sağlam. Konum (`Position`) zaten sinyal üretmiyor, onun için yoklama şart.
+  1 sn gecikme panel için yeterli. Şarkı değişimi çok geç gelirse sinyal dinleme sonradan eklenir.
+
+## 2026-11-17 · Python ortamı `uv` ile yönetilir (`host/.venv`)
+- Neden: sistemde kurulu, hızlı, `pyproject.toml` + kilit dosyası (`uv.lock`) ile tekrarlanabilir kurulum.
+
 ## 2026-11-17 · Bilgisayar servisi: Python
 - Neden: psutil/NVML/D-Bus kütüphaneleri hazır; systemd kullanıcı servisi olarak kolay çalışır.

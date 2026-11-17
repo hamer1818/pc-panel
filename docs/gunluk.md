@@ -2,6 +2,20 @@
 
 En yeni kayıt en üstte.
 
+## 2026-11-17 — Faz 2: bilgisayar servisi (veri toplama)
+- Faz 1 commit'lendi (`962731b`).
+- Yoklama: `k10temp` (Tctl, Tccd1), 2× NVMe sıcaklığı, RAM (spd5118) sıcaklığı mevcut; psutil fan bulamıyor.
+  Diskler: `/` = nvme1n1p2 (btrfs, 1 TB), `/mnt/veri` = nvme0n1p2 (btrfs, 460 GB). Ağ: wlan0 (etkin),
+  enp7s0, tailscale0, virbr0. NVIDIA sürücü 620.70.06. MPRIS'te açık çalar: Spotify.
+- `host/` kuruldu (`uv sync`, Python 3.12.10): psutil 7.2.2, nvidia-ml-py 13.615.71, dbus-fast 5.2.0.
+- Toplayıcılar yazıldı ve tek tek denendi. Hepsi doğru değer veriyor; Spotify'da Türkçe karakterli şarkı
+  bilgisi, konum, süre ve kapak adresi okunuyor.
+- Konsol, `--json` ve `--once` modları denendi. `--komut` (oynat/durdur vb.) yazıldı ama Claude denemedi:
+  kullanıcının müziğini durdurmamak için bu testi kullanıcı yapacak.
+- Kullanıcı testi: **hepsi doğru** — değerler KDE Sistem İzleyicisi / nvtop ile uyumlu; Spotify, YouTube ve yerel
+  çalarda şarkı bilgisi geliyor; `--komut` ile oynat/durdur, ileri, sarma çalışıyor.
+- **Faz 2 tamamlandı.**
+
 ## 2026-11-17 — Faz 1: ilk kendi yazılımımız karta yüklendi
 - Faz 0 commit'lendi (`cbdcc48`).
 - Fabrika yazılımı yedeklendi: 16 MB, 203 sn, 921600 baud → `yedek/fabrika-16MB.bin` (ilk bayt 0xE9, geçerli imaj).

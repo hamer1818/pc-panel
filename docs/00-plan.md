@@ -46,13 +46,17 @@ Amaç: kendi yazılımımızla ekrana bir şey çizmek ve dokunmayı okumak.
 ## Faz 2 — Bilgisayar servisi (veri toplama)
 Amaç: karta gönderilecek bütün bilgileri bilgisayarda doğru toplamak.
 
-- [ ] **[CLAUDE]** `host/` altında Python projesi (venv): `psutil`, `pynvml`, `dbus-next`, `pyserial`, `pillow`.
-- [ ] **[CLAUDE]** Sistem verileri: CPU yükü (toplam + çekirdek başına), CPU sıcaklığı (`k10temp`), RAM, disk doluluk + okuma/yazma, ağ indirme/yükleme hızı, çalışma süresi.
-- [ ] **[CLAUDE]** GPU verileri (RTX 5080, NVML): yük, sıcaklık, VRAM, güç, fan.
-- [ ] **[CLAUDE]** Medya (MPRIS / D-Bus): aktif çalar, şarkı, sanatçı, albüm, süre, konum, durum, kapak resmi adresi; çalar değişimini takip et.
-- [ ] **[CLAUDE]** `--konsol` modu: karta göndermeden terminale canlı yazdırır.
-- [ ] **[SEN]** Konsol modunu çalıştır; değerleri KDE Sistem İzleyicisi / `nvtop` ile karşılaştır.
-- [ ] **[SEN]** Spotify, tarayıcıda YouTube ve bir yerel çalar (Elisa/VLC) ile şarkı bilgisinin geldiğini kontrol et.
+- [x] **[CLAUDE]** `host/` altında Python projesi (`uv`, `.venv`, Python 3.12): `psutil`, `nvidia-ml-py`, `dbus-fast`.
+      (`pyserial` Faz 3'te, `pillow` Faz 5'te eklenecek.)
+- [x] **[CLAUDE]** Sistem verileri (`pc_panel/system.py`): CPU toplam + 16 iş parçacığı, MHz, `k10temp` Tctl, RAM, swap,
+      `/` ve `/mnt/veri` doluluk, fiziksel NVMe okuma/yazma hızı, fiziksel ağ arayüzleri hızı, çalışma süresi, yük.
+- [x] **[CLAUDE]** GPU verileri (`pc_panel/gpu.py`, NVML): yük, bellek yükü, sıcaklık, VRAM, güç / sınır, fan, saat.
+- [x] **[CLAUDE]** Medya (`pc_panel/media.py`, MPRIS): etkin çalar seçimi, şarkı, sanatçı, albüm, süre, konum, ses,
+      kapak adresi, yetenekler; kontrol komutları (oynat/durdur, ileri, geri, sarma) hazır.
+- [x] **[CLAUDE]** Konsol modu (`uv run pc-panel --konsol`) + `--json`, `--once`, `--komut`. Claude kendi denedi: Spotify ile çalışıyor.
+- [x] **[SEN]** Konsol modunu çalıştır; değerleri KDE Sistem İzleyicisi / `nvtop` ile karşılaştır → doğru.
+- [x] **[SEN]** Spotify, tarayıcıda YouTube ve bir yerel çalar (Elisa/VLC) ile şarkı bilgisinin geldiğini kontrol et → doğru.
+- [x] **[SEN]** Kontrol komutlarını dene: `uv run pc-panel --komut play_pause`, `--komut next`, `--komut seek_rel:30` → çalışıyor.
 
 **Bitti ölçütü:** konsolda bütün değerler doğru ve canlı, şarkı değişince bilgi güncelleniyor.
 
@@ -128,8 +132,8 @@ Karar verilecek içerik listesi:
 |-----|-------|
 | 0 Hazırlık | ✅ bitti (2026-11-17) |
 | 1 Ekran + dokunmatik | ✅ bitti (2026-11-17) |
-| 2 PC servisi | ⏳ sıradaki |
-| 3 Protokol | — |
+| 2 PC servisi | ✅ bitti (2026-11-17) |
+| 3 Protokol | ⏳ sürüyor |
 | 4 Arayüz | — |
 | 5 Medya | — |
 | 6 Kalıcı kurulum | — |
