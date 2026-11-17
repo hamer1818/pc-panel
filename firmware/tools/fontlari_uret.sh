@@ -34,11 +34,12 @@ SYMS="61441,61448,61451,61452,61453,61457,61459,61461,61465,61468,61473,61478,61
 
 for size in 12 14 16 18 22 30; do
     echo "tr_font_${size}"
+    # Yazı tipinin LVGL'deki adı çıktı dosyasının adından gelir (tr_font_<boyut>)
     "$CONV" --bpp 4 --size "$size" --no-compress \
         --font "$TEXT" -r "$TEXT_RANGE" \
         --font "$FA" -r "$SYMS" \
         --format lvgl --force-fast-kern-format \
-        --lv-font-name "tr_font_${size}" -o "$OUT/tr_font_${size}.c"
+        -o "$OUT/tr_font_${size}.c"
 done
 
 # Büyük ikonlar (kısayol kutuları ve medya düğmeleri), 40 px:
@@ -48,6 +49,6 @@ ICONS="0xF023,0xF130,0xF131,0xF030,0xF028,0xF6A9,0xF120,0xF0AC,0xF07B,0xF1BC,0xF
 echo "icon_font_40"
 "$CONV" --bpp 4 --size 40 --no-compress \
     --font "$FA" -r "$ICONS" \
-    --format lvgl --lv-font-name icon_font_40 -o "$OUT/icon_font_40.c"
+    --format lvgl -o "$OUT/icon_font_40.c"
 
 echo "Tamam: $(ls "$OUT" | wc -l) dosya → $OUT"

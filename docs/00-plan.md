@@ -95,10 +95,11 @@ Amaç: panelin son görünümüne karar verip LVGL ile yapmak.
 - [x] **[CLAUDE]** Protokol v1.1 + bilgisayar tarafı: saat/tarih, `cpu_max`, `gpu_fan`, `swap`, `vol` mesajı;
       `vol_set` ve `shortcut` komutları (`audio.py`, `shortcuts.py`). Ses ve kısayollar Faz 5'ten öne alındı.
 - [x] **[CLAUDE]** Yazı tipi üretme betiği: `firmware/tools/fontlari_uret.sh` (Montserrat + Türkçe + ikonlar, 12–30 px + 40 px ikon).
-- [ ] **[SEN]** Yazı tipi dönüştürücüsünü kur ya da Claude'un kurmasına izin ver:
-      `cd firmware && npm install --prefix tools/node lv_font_conv@1.5.2`
-- [ ] **[CLAUDE]** Yazı tiplerini üret, `PC_PANEL_TR_FONTS=1` ile derle, karta yükle, uçtan uca dene.
-- [ ] **[SEN]** Gerçek ekranda okunabilirlik, düğme büyüklüğü, akıcılık kontrolü.
+- [x] **[SEN]** Yazı tipi dönüştürücüsünü kur → kullanıcı kurdu (`firmware/tools/node`, lv_font_conv 1.5.2).
+- [x] **[CLAUDE]** Yazı tiplerini üret, `PC_PANEL_TR_FONTS=1` ile derle, karta yükle → 7 yazı tipi; flash %15,5;
+      yazılım 0.4.0 yüklendi, servis bağlandı, 12 sn denemede hata yok.
+- [ ] **[SEN]** Gerçek ekranda kontrol: Türkçe harfler, okunabilirlik, düğme büyüklüğü, sayfa kaydırma akıcılığı;
+      ilerleme ve ses kaydırıcıları; 8 kısayolun her biri.
 
 Karar verilecek içerik listesi:
 - Sistem: CPU %, CPU °C, GPU %, GPU °C, VRAM, RAM, disk, ağ, saat/tarih, çalışma süresi

@@ -2,6 +2,17 @@
 
 En yeni kayıt en üstte.
 
+## 2026-11-17 — Faz 4: Türkçe yazı tipleri ve karta ilk yükleme
+- Kullanıcı `npm install --prefix tools/node lv_font_conv@1.5.2` ile dönüştürücüyü kurdu.
+- Betik hatası: 1.5.2'de `--lv-font-name` seçeneği yok. Seçenek kaldırıldı; LVGL'deki ad çıktı dosyasının
+  adından geliyor. (Seçeneği sed ile silerken satır devam işaretleri de silindi; betik düzeltildi.)
+- 7 yazı tipi üretildi (`src/fonts/`, toplam ≈1,8 MB C kaynağı): tr_font_12/14/16/18/22/30 ve icon_font_40.
+  15 ikonun hepsi var; Türkçe harfler var.
+- `-DPC_PANEL_TR_FONTS=1` ile derlendi: RAM %7,7, flash %15,5 (1,01 MB). Karta yüklendi, 0.4.0 "merhaba" dedi.
+  Servisle 12 sn deneme: kart günlüğünde uyarı/hata yok (yalnızca bilinen GT911 adres uyarısı).
+- Üretilen `.c` dosyaları git'e ekleniyor: böylece derlemek için lv_font_conv gerekmiyor.
+- **Sıradaki:** kullanıcı gerçek ekranda bütün sayfaları ve düğmeleri deneyecek.
+
 ## 2026-11-17 — Faz 4: tasarım onaylandı, LVGL'ye aktarıldı (yazı tipleri bekliyor)
 - Kullanıcı taslak v1'i olduğu gibi onayladı.
 - Yoklama: node 26 / npm var. Varsayılan tarayıcı Zen (`userapp-Zen-83YBT3.desktop`); konsole, dolphin, spectacle,
