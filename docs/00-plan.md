@@ -74,7 +74,7 @@ Amaç: bilgisayar ile kart arasında güvenilir iki yönlü bağlantı.
       Türkçe harfler geçici olarak ASCII'ye çevriliyor (yazı tipi Faz 4'te).
 - [x] **[CLAUDE]** Uçtan uca deneme: `hello`, kalp atışı, `stat`/`media` akışı çalışıyor; karttan `next` komutu Spotify'da uygulandı.
 - [x] **[SEN]** Test: servisi kapat-aç → çalışıyor.
-- [ ] **[SEN]** Test: kabloyu çıkar-tak → henüz yapılmadı (logda kopma/yeniden bağlanma satırı yok).
+- [x] **[SEN]** Test: kabloyu çıkar-tak → kullanıcı yaptı, sorun bildirmedi.
 - [x] **[SEN]** Karttaki bütün düğmeleri dene: ⏮ ⏯ ⏭, −10 sn, +10 sn → hepsi "tamam" (log 16:02:49–16:02:56).
 
 **Bitti ölçütü:** değerler karta akıyor, düğmeye basınca müzik duruyor/başlıyor, kopma sonrası kendiliğinden bağlanıyor.
@@ -139,8 +139,8 @@ Karar verilecek içerik listesi:
 | 0 Hazırlık | ✅ bitti (2026-11-17) |
 | 1 Ekran + dokunmatik | ✅ bitti (2026-11-17) |
 | 2 PC servisi | ✅ bitti (2026-11-17) |
-| 3 Protokol | ⏳ sürüyor |
-| 4 Arayüz | — |
+| 3 Protokol | ✅ bitti (2026-11-17) |
+| 4 Arayüz | ⏳ sıradaki — kullanıcının içerik/tema tercihleri bekleniyor |
 | 5 Medya | — |
 | 6 Kalıcı kurulum | — |
 | 7 Ekstralar | — |

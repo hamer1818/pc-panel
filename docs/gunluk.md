@@ -24,8 +24,8 @@ En yeni kayıt en üstte.
   (Claude Code terminal panelindeki sekmeye komut yazılamadı).
 - Kullanıcı testi (servis kendi terminalinde, 16:02): tek kopya, kopma yok. Karttaki düğmelerin hepsi çalıştı:
   play_pause ×2, next ×2, prev, seek_rel +10, seek_rel −10 → hepsi "tamam". Servisi Ctrl+C ile kapatıp açma da sorunsuz.
-- Kabloyu çıkar-tak testi henüz yapılmadı. Yeniden bağlanma kodu, iki kopyanın port kavgasında defalarca çalıştı;
-  ama aygıt dosyasının tamamen kaybolup geri gelmesi ayrıca denenmedi.
+- Kablo çıkar-tak testi: kullanıcı yaptı ve sorun bildirmedi. O testin logu paylaşılmadı.
+- **Faz 3 tamamlandı.** Sıradaki: Faz 4 — arayüz tasarımı; önce kullanıcının tercihleri alınacak.
 
 ## 2026-11-17 — Faz 2: bilgisayar servisi (veri toplama)
 - Faz 1 commit'lendi (`962731b`).
