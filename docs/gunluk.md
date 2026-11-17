@@ -11,7 +11,9 @@ En yeni kayıt en üstte.
 - `-DPC_PANEL_TR_FONTS=1` ile derlendi: RAM %7,7, flash %15,5 (1,01 MB). Karta yüklendi, 0.4.0 "merhaba" dedi.
   Servisle 12 sn deneme: kart günlüğünde uyarı/hata yok (yalnızca bilinen GT911 adres uyarısı).
 - Üretilen `.c` dosyaları git'e ekleniyor: böylece derlemek için lv_font_conv gerekmiyor.
-- **Sıradaki:** kullanıcı gerçek ekranda bütün sayfaları ve düğmeleri deneyecek.
+- Kullanıcı testi: **hepsi düzgün**. Türkçe harfler, saat/tarih, sayfa kaydırma, göstergeler/grafikler,
+  ilerleme ve ses kaydırıcıları, sessiz düğmesi, 8 kısayolun hepsi çalışıyor.
+- **Faz 4 tamamlandı.** Sıradaki: Faz 5 — kapak resmi.
 
 ## 2026-11-17 — Faz 4: tasarım onaylandı, LVGL'ye aktarıldı (yazı tipleri bekliyor)
 - Kullanıcı taslak v1'i olduğu gibi onayladı.

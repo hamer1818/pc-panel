@@ -98,8 +98,8 @@ Amaç: panelin son görünümüne karar verip LVGL ile yapmak.
 - [x] **[SEN]** Yazı tipi dönüştürücüsünü kur → kullanıcı kurdu (`firmware/tools/node`, lv_font_conv 1.5.2).
 - [x] **[CLAUDE]** Yazı tiplerini üret, `PC_PANEL_TR_FONTS=1` ile derle, karta yükle → 7 yazı tipi; flash %15,5;
       yazılım 0.4.0 yüklendi, servis bağlandı, 12 sn denemede hata yok.
-- [ ] **[SEN]** Gerçek ekranda kontrol: Türkçe harfler, okunabilirlik, düğme büyüklüğü, sayfa kaydırma akıcılığı;
-      ilerleme ve ses kaydırıcıları; 8 kısayolun her biri.
+- [x] **[SEN]** Gerçek ekranda kontrol: Türkçe harfler, okunabilirlik, düğme büyüklüğü, sayfa kaydırma akıcılığı;
+      ilerleme ve ses kaydırıcıları; 8 kısayolun her biri → **hepsi düzgün**.
 
 Karar verilecek içerik listesi:
 - Sistem: CPU %, CPU °C, GPU %, GPU °C, VRAM, RAM, disk, ağ, saat/tarih, çalışma süresi
@@ -111,9 +111,10 @@ Karar verilecek içerik listesi:
 ---
 
 ## Faz 5 — Medya kontrolünü tamamlama
-- [ ] **[CLAUDE]** Kapak resmini indir/oku → 200×200'e küçült → RGB565 olarak karta gönder; aynı kapağı tekrar gönderme.
-- [ ] **[CLAUDE]** Sistem sesi (PipeWire, `wpctl`) okuma/ayarlama, sessiz; kaydırıcı ile çift yönlü eşleme.
-- [ ] **[CLAUDE]** İlerleme çubuğuna dokunarak sarma (seek); birden çok çalar varsa seçim.
+- [ ] **[CLAUDE]** Kapak resmini indir/oku → 240×240'a küçült → RGB565 olarak karta gönder; aynı kapağı tekrar gönderme.
+- [x] **[CLAUDE]** Sistem sesi (PipeWire, `wpctl`) okuma/ayarlama, sessiz; kaydırıcı ile çift yönlü eşleme → Faz 4'te yapıldı.
+- [x] **[CLAUDE]** İlerleme çubuğuna dokunarak sarma (seek) → Faz 4'te yapıldı.
+- [ ] **[CLAUDE]** Birden çok çalar varsa karttan çalar seçimi (isteğe bağlı).
 - [ ] **[SEN]** Farklı çalarlarla test, hataları bana bildir.
 
 **Bitti ölçütü:** Spotify ve tarayıcıda bütün kontroller ve kapak çalışıyor.
@@ -151,7 +152,7 @@ Karar verilecek içerik listesi:
 | 1 Ekran + dokunmatik | ✅ bitti (2026-11-17) |
 | 2 PC servisi | ✅ bitti (2026-11-17) |
 | 3 Protokol | ✅ bitti (2026-11-17) |
-| 4 Arayüz | ⏳ sıradaki — kullanıcının içerik/tema tercihleri bekleniyor |
-| 5 Medya | — |
+| 4 Arayüz | ✅ bitti (2026-11-17) |
+| 5 Medya | ⏳ sıradaki — yalnızca kapak resmi kaldı |
 | 6 Kalıcı kurulum | — |
 | 7 Ekstralar | — |
