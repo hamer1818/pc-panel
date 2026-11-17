@@ -145,11 +145,45 @@ Karar verilecek içerik listesi:
 
 ---
 
-## Faz 7 — İsteğe bağlı geliştirmeler (sonra karar verilecek)
-- [ ] Wi‑Fi + WebSocket ile kablosuz çalışma (pil konnektörü de var)
-- [ ] Kartın kendi USB girişinden HID medya tuşları (servis kapalıyken de ⏯ çalışsın)
-- [ ] Kısayol sayfası / makro düğmeleri
-- [ ] Kablosuz yazılım güncelleme (OTA)
+## Faz 7 — İsteğe bağlı geliştirmeler
+Kullanıcı 2026-11-17'de önce "kolay paket"i seçti (7A); ardından hava durumunu istemedi ve yazılımcı olarak
+işine yarayacak özellikleri istedi (7B).
+
+### 7A — Kolay paket (ayar dosyası, kısayollar, bildirim, kilit saati, uyarılar)
+- [x] **[CLAUDE]** Ayar dosyası `~/.config/pc-panel/ayarlar.toml` (örnek: `deploy/ayarlar.ornek.toml`); değişince
+      servis yeniden başlatılmadan uygulanır.
+- [x] **[CLAUDE]** Kısayollar ayar dosyasından: en çok 12 kutu, ikon adları, uygulama / komut / adres / özel / makro.
+- [x] **[CLAUDE]** Bildirimleri karta yansıtma (D-Bus izleme), hariç tutulan uygulamalar, kilitliyken gizli.
+- [x] **[CLAUDE]** Kilitliyken büyük saat + tarih, süre dolunca karartma.
+- [x] ~~Hava durumu (Open-Meteo)~~ → kullanıcı istemedi, 7B'de kaldırıldı.
+- [x] **[CLAUDE]** Sıcaklık / RAM uyarısı (üst şeritte kırmızı), disk dolunca tek seferlik bildirim.
+
+### 7B — Geliştirici paketi (kart 0.8.0, protokol v1.5)
+- [x] **[CLAUDE]** Olay soketi `$XDG_RUNTIME_DIR/pc-panel.sock` + `pc-panel-olay` aracı (claude / komut / bildir).
+- [x] **[CLAUDE]** Claude Code durumu: hook'lar (`deploy/claude_hooks.py kur|kaldir|durum`), oturum listesi,
+      izin isteyince ve uzun iş bitince bildirim, üst şeritte "Claude: N bekliyor", kilit ekranında da.
+- [x] **[CLAUDE]** fish: 30 sn'den uzun süren komut bitince ✓/✗ bildirim (`deploy/pc-panel.fish`).
+- [x] **[CLAUDE]** GitHub: son Actions çalışmaları, CI bitince / başarısız olunca bildirim, PR ve bildirim sayıları.
+- [x] **[CLAUDE]** Sunucu/site sağlığı: 7 kayıt (iurl.tr, app.iurl.tr, hamza.tr, api.hamza.tr, tulparlang.dev,
+      pkg.tulparlang.dev, myserver SSH); kapanınca uyarı + bildirim, SSL < 7 gün uyarısı.
+- [x] **[CLAUDE]** Kart: 4. sayfa "Geliştirici", bildirim türleri (✓ yeşil, ✗ kırmızı, ⚠ sarı), hava durumu kaldırıldı.
+      → Claude denedi: kart 0.8.0 yüklendi; hook olayları (13 ms, çıkış 0), izin bildirimi, `pc-panel-olay bildir`,
+      fish'te `sleep 31; false` → "çıkış 1" bildirimi, gh verisi servisten geliyor; Claude ve sunucu mantığı birim denemeli.
+- [ ] **[SEN]** Kartta gözle kontrol (7A + 7B birlikte):
+      1. Kısayollar sayfası: 8 kutu, ikonlar ve Türkçe yazılar düzgün mü?
+      2. Geliştirici sayfası (en sağ): Claude oturumları, GitHub satırları (iurl "Deploy API" kırmızı olmalı), 7 sunucu kutusu.
+      3. **Yeni bir** Claude Code oturumu aç, bir şey sor → kartta "çalışıyor"; izin isteyince sarı + bildirim; bitince "bitti".
+      4. Yeni bir fish terminalinde `sleep 31` → 31 sn sonra kartta ✓ bildirimi.
+      5. `notify-send -a Deneme "Merhaba" "Kart bildirimi"` → balon kayarak geliyor mu, dokununca kapanıyor mu?
+      6. Kilit saati: Meta+L → büyük saat; dokununca saat kalıyor; kilidi açınca panel geri geliyor.
+
+### 7C — Sonra (karar verilecek)
+- [ ] Görev çalıştırıcı kutular (çalışıyor → ✓/✗ ve süre, tehlikeli işlerde onay)
+- [ ] Geliştirme ortamı sayfası: dinlenen localhost portları, docker konteynerleri, adb / tailscale cihazları
+- [ ] Odak modu: pomodoro + KDE "Rahatsız Etme"
+- [ ] Karttan çalar seçimi · ses çıkışı seçimi
+- [ ] Kartın kendi USB girişinden HID medya tuşları, mümkünse tek kablo
+- [ ] Wi‑Fi + WebSocket ile kablosuz çalışma + OTA güncelleme
 - [ ] **[SEN]** Stand / kasa (3D baskı ya da hazır stand)
 
 ---
@@ -164,4 +198,4 @@ Karar verilecek içerik listesi:
 | 4 Arayüz | ✅ bitti (2026-11-17) |
 | 5 Medya | ✅ bitti (2026-11-17); karttan çalar seçimi isteğe bağlı, yapılmadı |
 | 6 Kalıcı kurulum | ✅ bitti (2026-11-17) |
-| 7 Ekstralar | isteğe bağlı — kullanıcı seçecek |
+| 7 Ekstralar | 7A + 7B kodlandı, kart 0.8.0 (2026-11-17) — kullanıcı kontrolü bekliyor; 7C sonra |

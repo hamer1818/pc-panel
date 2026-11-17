@@ -17,6 +17,7 @@ LV_FONT_DECLARE(tr_font_18);
 LV_FONT_DECLARE(tr_font_22);
 LV_FONT_DECLARE(tr_font_30);
 LV_FONT_DECLARE(icon_font_40);
+LV_FONT_DECLARE(clock_font_120);
 #define F12 (&tr_font_12)
 #define F14 (&tr_font_14)
 #define F16 (&tr_font_16)
@@ -24,6 +25,7 @@ LV_FONT_DECLARE(icon_font_40);
 #define F22 (&tr_font_22)
 #define F30 (&tr_font_30)
 #define FICON (&icon_font_40)
+#define FCLOCK (&clock_font_120)  // yalnızca rakamlar, ':', '-', boşluk
 // Font Awesome 5 kod noktaları (UTF-8)
 #define ICON_LOCK "\xEF\x80\xA3"        // U+F023
 #define ICON_MIC "\xEF\x84\xB0"         // U+F130
@@ -44,6 +46,7 @@ LV_FONT_DECLARE(icon_font_40);
 #define F22 (&lv_font_montserrat_22)
 #define F30 (&lv_font_montserrat_30)
 #define FICON (&lv_font_montserrat_40)
+#define FCLOCK (&lv_font_montserrat_40)
 // Yedek: hazır yazı tipinde yalnızca LV_SYMBOL_* var
 #define ICON_LOCK LV_SYMBOL_EYE_CLOSE
 #define ICON_MIC LV_SYMBOL_AUDIO

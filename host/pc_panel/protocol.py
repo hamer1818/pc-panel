@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import time
 
-PROTO_VERSION = 1  # v1.1: geriye uyumlu eklemeler (stat'a yeni alanlar, vol mesajı, vol_set/shortcut komutları)
+PROTO_VERSION = 1  # v1.x: geriye uyumlu eklemeler (v1.1 vol/kısayol, v1.2 kapak, v1.3 karartma, v1.4 ayarlar)
 MB = 1024 * 1024
 
 
@@ -87,3 +87,45 @@ def vol_message(a: dict) -> dict:
         "mic": a["mic"],
         "mic_mute": int(bool(a["mic_mute"])),
     }
+
+
+# --- v1.4 (Faz 7): ayar dosyasından gelenler -----------------------------------------------------
+
+def tiles_message(shortcuts) -> dict:
+    """Kısayol kutuları. Kart en çok 12 kutu gösterir; `tg`: "mic"/"mute" durum gösteren kutular."""
+    items = []
+    for sc in shortcuts:
+        it = {"id": sc.id, "ic": sc.icon, "ti": sc.title, "de": sc.desc}
+        if sc.toggle:
+            it["tg"] = sc.toggle
+        items.append(it)
+    return {"t": "tiles", "items": items}
+
+
+def cfg_message(s) -> dict:
+    return {"t": "cfg", "lock_clock": int(s.lock_clock), "lock_min": s.lock_min, "notif_s": s.notif_secs}
+
+
+def notif_message(app: str, title: str, body: str, lvl: str = "info") -> dict:
+    """lvl: info (zil) · ok (yeşil ✓) · err (kırmızı ✗) · wait (sarı ⚠) — kartta ikon ve renk."""
+    return {"t": "notif", "app": app[:40], "ti": title[:100], "bd": body[:200], "lvl": lvl}
+
+
+# --- v1.5 (Faz 7B): Geliştirici sayfası ------------------------------------------------------------
+
+def cc_message(items: list[dict]) -> dict:
+    """Claude Code oturumları: p proje, s durum (work/wait/done/idle), m açıklama, age sn."""
+    return {"t": "cc", "items": items[:5], "wait": sum(1 for x in items if x["s"] == "wait"),
+            "work": sum(1 for x in items if x["s"] == "work")}
+
+
+def gh_message(data: dict | None, error: str = "") -> dict:
+    if not data:
+        return {"t": "gh", "ok": 0, "err": error[:40]}
+    return {"t": "gh", "ok": 1, "runs": data["runs"][:4], "rev": data["review"], "prs": data["my_prs"],
+            "ntf": data["notifications"]}
+
+
+def srv_message(items: list[dict]) -> dict:
+    """Sunucular: n ad, ok (1 ayakta / 0 kapalı / -1 henüz bilinmiyor), ms gecikme, ssl kalan gün."""
+    return {"t": "srv", "items": items[:8]}

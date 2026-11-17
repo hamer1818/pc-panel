@@ -2,6 +2,53 @@
 
 En yeni kayıt en üstte.
 
+## 2026-11-17 — Faz 7B: geliştirici paketi (Claude Code, uzun komut, GitHub, sunucular), hava durumu kaldırıldı
+- Kullanıcı hava durumunu istemedi ve yazılımcı olarak işine yarayacak özellikler istedi. Sunulan 7 fikirden
+  1+2+3+4'ü seçti. Plan 7A / 7B / 7C olarak yeniden düzenlendi.
+- Yoklama: gh oturumu açık (hamer1818); Actions çalışan depolar TulparLang, tulpar-engine, dpi-dashboard, iurl,
+  kup-kure-savasi, hamzaortatepe-v4. Projelerde geçen alan adları denendi: iurl.dev / app|api.iurl.dev,
+  api.iurl.tr ve hamzaortatepe.com çözülmüyor. Çalışanlar ayar dosyasına yazıldı: iurl.tr, app.iurl.tr, hamza.tr,
+  api.hamza.tr (404 = ayakta), tulparlang.dev, pkg.tulparlang.dev, myserver SSH.
+- Bilgisayar: `olay.py` (pc-panel-olay, pyproject'e giriş noktası, `uv sync`), `claude.py`, `github.py`,
+  `servers.py`; servis olay soketi açıyor. `weather.py` silindi. Ayar dosyasına [claude] [komut] [github]
+  [sunucular] [[sunucu]] eklendi; kullanıcının dosyası örnekle aynı olduğu için (elle değiştirilmemişti) yeni
+  örnek + sunucular ile yeniden yazıldı.
+- Kurulum: `deploy/claude_hooks.py kur` → 6 hook (yedek: `~/.claude/settings.json.yedek-20261117-175445`),
+  `deploy/pc-panel.fish` → `~/.config/fish/conf.d/`. `kur.sh` ikisini de yapıyor.
+- Kart 0.8.0: 4. sayfa "Geliştirici" (Claude 5 satır, GitHub 4 satır + PR/bildirim, 8 sunucu kutusu), bildirim
+  ikonu ve kenar rengi türe göre, üst şeritte "Claude: N bekliyor", kilit ekranında bekleyen oturum. Hava UI'ı ve
+  ikonları çıkarıldı (icon_font_40: 49 glif). `LINE_MAX` sistem tanımıyla çakışıyordu → `LINK_LINE_MAX`.
+  RAM %9,0, flash %16,5.
+- Denemeler (Claude): elle gönderilen hook olayları → "TulparLang: izin bekliyor" bildirimi; olay başına 13 ms,
+  çıkış 0. `pc-panel-olay bildir` çalıştı. fish'te (`script` ile etkileşimli) `sleep 31; false` → "sleep (çıkış 1,
+  31 sn)". `GitHubWatcher.poll` gerçek veri döndü (iurl "Deploy API" başarısız, 5 açık PR, 3 bildirim);
+  servis içinden de hatasız. Claude durum makinesi ve sunucu kapandı/düzeldi geçişleri saat taklidiyle denendi.
+  Deneme oturumları SessionEnd ile silindi.
+- Denenmeyenler: gerçek bir Claude Code oturumunun hook'ları (yeni ayarlar yeni oturumlarda geçerli), kartın
+  görünümü (kullanıcıda), CI bitince gelen bildirim (bir çalışmanın bitmesini beklemek gerekiyor).
+- **Sıradaki:** kullanıcının gözle kontrolü (plandaki 6 madde), sonra commit; 7C'den seçim.
+
+## 2026-11-17 — Faz 7A: ayar dosyası, ayarlanabilir kısayollar, bildirimler, kilit saati, uyarılar
+- Kullanıcı Faz 7 için "kolay paket" ile başlamayı seçti. Plan 7A / 7B / 7C olarak bölündü (`00-plan.md`).
+- Bilgisayar: `config.py` (TOML, canlı yeniden yükleme, `--ayar-kontrol`), `shortcuts.py` ayardan çalışıyor
+  (uygulama / komut / adres / özel / medya / makro + bekle), `notify.py` (D-Bus BecomeMonitor), `weather.py`
+  (Open-Meteo), `alerts.py`. Protokol v1.4: `tiles`, `cfg`, `wx`, `notif`, `stat.warn`, `cmd mute`.
+- Önce küçük bir denemeyle `BecomeMonitor` + `notify-send` denendi, çalıştı. dbus-fast'ta işleyici `True`
+  döndürmezse kütüphane izleyici bağlantıdan hata yanıtı göndermeye çalışıyor; buna dikkat edildi.
+- Kart 0.7.0: kutular dinamik (en çok 12, 9+ kutuda 3 satır), bildirim balonu (üstten kayar, dokununca kapanır),
+  üst şeritte kırmızı uyarı ve hava durumu, kilit saati ekranı (120 px rakamlar + tarih + hava), ekran durum
+  makinesi (panel / kilit saati / karanlık). `LINE_MAX` 2048 → 4096.
+- Yazı tipleri yeniden üretildi: icon_font_40'a 42 ikon eklendi (toplam 57), tr_font_*'a hava ikonları, yeni
+  clock_font_120. RAM %8,9, flash %16,8. Uyarısız derlendi.
+- Denemeler (Claude): servis elle `--debug` ile, karalama klasöründe 10 kutulu ve Ankara'lı bir deneme ayarıyla
+  çalıştırıldı. Kutular, ayarlar ve hava durumu karta gitti. Deneme bildirimi karta ulaştı, Spotify bildirimi süzüldü.
+  Kartın ekran geçişleri sahte `stat` mesajlarıyla denendi: kilit saati, kilit açılınca panel, ayar kapalıyken
+  karanlık, yeni uyarıyla uyanma → hepsi doğru. 10 dakikalık kilit süresinin dolması denenmedi (beklemek gerekiyor).
+- `~/.config/pc-panel/ayarlar.toml` örnekten oluşturuldu (şehir boş, hava durumu kapalı). Servis 3 sn içinde
+  dosyayı yükledi. `kur.sh` artık dosya yoksa örneği kopyalıyor.
+- Ekranın görünümü gözle kontrol edilmedi; bu kullanıcıda (plandaki [SEN] adımı).
+- **Sıradaki:** kullanıcı kontrolü; sonra 7B (çalar seçimi, ses çıkışı, sayaç) ya da 7C.
+
 ## 2026-11-17 — Faz 6: kalıcı kurulum ve ekran karartma
 - Yoklama: systemd kullanıcı ortamında WAYLAND_DISPLAY / DISPLAY / DBUS var; graphical-session.target etkin;
   `org.freedesktop.ScreenSaver.GetActive` yanıt veriyor (/ScreenSaver); `/mnt/veri` fstab'da.

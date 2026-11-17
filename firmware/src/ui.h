@@ -18,6 +18,16 @@ void ui_clear_art();
 void ui_set_sleep(bool dark);
 bool ui_take_wake_request();  // loop() çağırır; istek varsa true döner ve isteği siler
 
+// Faz 7 (protokol v1.4)
+void ui_set_tiles(JsonArrayConst items);  // kısayol kutuları (en çok 12); boş liste → yerleşik varsayılanlar
+void ui_show_notif(const char *app, const char *title, const char *body, const char *lvl, uint32_t ms);
+bool ui_set_warn(const char *text);       // "" → uyarı yok; yeni bir uyarı başladıysa true döner
+// Faz 7B (protokol v1.5): Geliştirici sayfası
+void ui_update_cc(JsonObjectConst o);   // Claude Code oturumları (+ üst şerit / kilit ekranı göstergesi)
+void ui_update_gh(JsonObjectConst o);   // GitHub Actions, PR, bildirim
+void ui_update_srv(JsonObjectConst o);  // sunucu sağlığı
+void ui_set_lock_clock(bool on);          // PC kilitliyken büyük saat ekranı
+
 // main.cpp'de tanımlı: karttan bilgisayara komut gönderir
 void link_send_cmd(const char *cmd, int value, bool has_value);
 void link_send_shortcut(const char *id);

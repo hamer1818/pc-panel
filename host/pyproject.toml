@@ -13,6 +13,7 @@ dependencies = [
 
 [project.scripts]
 pc-panel = "pc_panel.__main__:main"
+pc-panel-olay = "pc_panel.olay:main"
 
 [build-system]
 requires = ["hatchling"]

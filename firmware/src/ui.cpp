@@ -33,9 +33,18 @@ constexpr int PAGE_H = 440;
 
 // ---- Nesneler ----
 lv_obj_t *lbl_clock, *lbl_date, *lbl_page, *link_dot, *link_lbl;
-lv_obj_t *tileview, *page_dots[3];
+constexpr int PAGES = 4;
+lv_obj_t *tileview, *page_dots[PAGES];
 lv_obj_t *toast;
 lv_timer_t *toast_timer;
+
+// Faz 7
+lv_obj_t *warn_pill, *dev_top;                                  // üst şerit: uyarı, Claude durumu
+lv_obj_t *notif_box, *notif_icon, *notif_app, *notif_title, *notif_body;  // bildirim balonu
+lv_timer_t *notif_timer;
+lv_obj_t *lock_scr, *lock_clock, *lock_date, *lock_warn, *lock_dev;  // kilit saati ekranı
+lv_obj_t *sleep_overlay;
+volatile bool wake_requested = false;
 
 struct Big {  // CPU / GPU kartı
     lv_obj_t *arc, *num, *v1, *v2, *v3, *chart;
@@ -56,23 +65,81 @@ lv_obj_t *art_img, *art_note;
 lv_img_dsc_t art_dsc;
 int media_len = 0;
 
+// ---- Kısayol kutuları (Faz 7: bilgisayardaki ayar dosyasından `tiles` mesajıyla gelir) ----
+constexpr int MAX_TILES = 12;
+enum Toggle : uint8_t { TG_NONE, TG_MIC, TG_MUTE };
 struct Tile {
-    const char *id, *icon, *title, *desc;
-    bool toggle;
+    char id[20], title[64], desc[64];
+    const char *icon;
+    Toggle tg;
     lv_obj_t *obj, *icon_lbl, *desc_lbl;
 };
-Tile tiles[] = {
-    {"lock", ICON_LOCK, "Ekranı kilitle", "KDE oturumu", false},
-    {"mic", ICON_MIC, "Mikrofon", "açık", true},
-    {"screenshot", ICON_CAMERA, "Ekran görüntüsü", "Spectacle", false},
-    {"mute", ICON_VOLUME, "Sesi kapat", "açık", true},
-    {"terminal", ICON_TERMINAL, "Terminal", "Konsole", false},
-    {"browser", ICON_GLOBE, "Tarayıcı", "Zen", false},
-    {"files", ICON_FOLDER, "Dosyalar", "Dolphin", false},
-    {"spotify", ICON_SPOTIFY, "Spotify", "öne getir", false},
+Tile tiles[MAX_TILES];
+int tile_count = 0;
+lv_obj_t *shortcut_page;
+bool mic_off = false, mute_off = false;
+
+// Bilgisayardan mesaj gelmeden önce gösterilenler (ayar dosyası örneğindeki varsayılanlarla aynı)
+struct DefaultTile {
+    const char *id, *icon, *title, *desc;
+    Toggle tg;
 };
-constexpr int TILE_COUNT = sizeof(tiles) / sizeof(tiles[0]);
-const char *const PAGE_NAMES[3] = {"SİSTEM", "MEDYA", "KISAYOLLAR"};
+const DefaultTile DEFAULT_TILES[] = {
+    {"lock", "lock", "Ekranı kilitle", "KDE oturumu", TG_NONE},
+    {"mic", "mic", "Mikrofon", "", TG_MIC},
+    {"screenshot", "camera", "Ekran görüntüsü", "Spectacle", TG_NONE},
+    {"mute", "volume", "Sesi kapat", "", TG_MUTE},
+    {"terminal", "terminal", "Terminal", "Konsole", TG_NONE},
+    {"tarayici", "globe", "Tarayıcı", "Zen", TG_NONE},
+    {"dosyalar", "folder", "Dosyalar", "Dolphin", TG_NONE},
+    {"spotify", "spotify", "Spotify", "öne getir", TG_NONE},
+};
+
+struct NamedGlyph {
+    const char *name, *glyph;
+};
+#if PC_PANEL_TR_FONTS
+// Ad → Font Awesome 5 (UTF-8). Adlar host/pc_panel/config.py ICONS ile aynı; glifler icon_font_40'ta.
+const NamedGlyph ICONS[] = {
+    {"lock", "\xEF\x80\xA3"},        {"mic", "\xEF\x84\xB0"},        {"camera", "\xEF\x80\xB0"},
+    {"volume", "\xEF\x80\xA8"},      {"terminal", "\xEF\x84\xA0"},   {"globe", "\xEF\x82\xAC"},
+    {"folder", "\xEF\x81\xBB"},      {"spotify", "\xEF\x86\xBC"},    {"code", "\xEF\x84\xA1"},
+    {"gamepad", "\xEF\x84\x9B"},     {"steam", "\xEF\x86\xB6"},      {"discord", "\xEF\x8E\x92"},
+    {"firefox", "\xEF\x89\xA9"},     {"chrome", "\xEF\x89\xA8"},     {"youtube", "\xEF\x85\xA7"},
+    {"github", "\xEF\x82\x9B"},      {"envelope", "\xEF\x83\xA0"},   {"calendar", "\xEF\x81\xB3"},
+    {"calculator", "\xEF\x87\xAC"},  {"cog", "\xEF\x80\x93"},        {"power", "\xEF\x80\x91"},
+    {"moon", "\xEF\x86\x86"},        {"sync", "\xEF\x8B\xB1"},       {"desktop", "\xEF\x84\x88"},
+    {"download", "\xEF\x80\x99"},    {"home", "\xEF\x80\x95"},       {"bolt", "\xEF\x83\xA7"},
+    {"clipboard", "\xEF\x8C\xA8"},   {"image", "\xEF\x80\xBE"},      {"video", "\xEF\x80\xBD"},
+    {"headphones", "\xEF\x80\xA5"},  {"star", "\xEF\x80\x85"},       {"bell", "\xEF\x83\xB3"},
+    {"search", "\xEF\x80\x82"},      {"keyboard", "\xEF\x84\x9C"},   {"file", "\xEF\x85\x9C"},
+    {"rocket", "\xEF\x84\xB5"},      {"tv", "\xEF\x89\xAC"},         {"wifi", "\xEF\x87\xAB"},
+    {"telegram", "\xEF\x8B\x86"},    {"whatsapp", "\xEF\x88\xB2"},   {"music", "\xEF\x80\x81"},
+    {"play", "\xEF\x81\x8B"},        {"pause", "\xEF\x81\x8C"},      {"next", "\xEF\x81\x91"},
+    {"prev", "\xEF\x81\x88"},
+};
+#else
+const NamedGlyph ICONS[] = {
+    {"lock", ICON_LOCK},         {"mic", ICON_MIC},        {"camera", ICON_CAMERA}, {"volume", ICON_VOLUME},
+    {"terminal", ICON_TERMINAL}, {"globe", ICON_GLOBE},    {"folder", ICON_FOLDER}, {"spotify", ICON_SPOTIFY},
+    {"music", ICON_MUSIC},       {"play", LV_SYMBOL_PLAY}, {"pause", LV_SYMBOL_PAUSE},
+    {"next", LV_SYMBOL_NEXT},    {"prev", LV_SYMBOL_PREV}, {"cog", LV_SYMBOL_SETTINGS},
+    {"home", LV_SYMBOL_HOME},    {"wifi", LV_SYMBOL_WIFI}, {"bell", LV_SYMBOL_BELL},
+};
+#endif
+
+const char *glyph_by_name(const NamedGlyph *table, size_t n, const char *name, const char *fallback)
+{
+    for (size_t i = 0; i < n; i++) {
+        if (strcmp(table[i].name, name) == 0) {
+            return table[i].glyph;
+        }
+    }
+    return fallback;
+}
+#define ICON(name) glyph_by_name(ICONS, sizeof(ICONS) / sizeof(ICONS[0]), (name), LV_SYMBOL_DUMMY "?")
+
+const char *const PAGE_NAMES[PAGES] = {"SİSTEM", "MEDYA", "KISAYOLLAR", "GELİŞTİRİCİ"};
 
 // ---- Yardımcılar ----
 
@@ -274,7 +341,7 @@ void tile_changed_cb(lv_event_t *e)
     lv_obj_t *act = lv_tileview_get_tile_act(tileview);
     int idx = static_cast<int>(lv_obj_get_x(act) / 800);
     lv_label_set_text(lbl_page, PAGE_NAMES[idx]);
-    for (int i = 0; i < 3; i++) {
+    for (int i = 0; i < PAGES; i++) {
         lv_obj_set_width(page_dots[i], i == idx ? 20 : 7);
         lv_obj_set_style_bg_color(page_dots[i], i == idx ? C_ACCENT : C_LINE, 0);
     }
@@ -430,7 +497,7 @@ void vol_changed_cb(lv_event_t *e)
 
 void mute_click_cb(lv_event_t *e)
 {
-    link_send_shortcut("mute");
+    link_send_cmd("mute", 0, false);  // kısayol listesinden bağımsız (v1.4)
 }
 
 lv_obj_t *button(lv_obj_t *parent, int x, int w, lv_color_t bg, const char *cmd)
@@ -538,15 +605,41 @@ void tile_click_cb(lv_event_t *e)
 {
     Tile *t = static_cast<Tile *>(lv_event_get_user_data(e));
     link_send_shortcut(t->id);
-    char msg[64];
+    char msg[80];
     snprintf(msg, sizeof(msg), "%s…", t->title);
     show_toast(msg);
 }
 
+// Kutu yerleşimi: 8'e kadar 2 satır (178 px), daha fazlası 3 satır (124 px); her zaman 4 sütun
+int tile_icon_dy = -26, tile_title_dy = 22, tile_desc_dy = 44;
+
+void apply_tile_toggle(Tile &t)
+{
+    if (t.tg == TG_NONE) {
+        return;
+    }
+    bool off = t.tg == TG_MIC ? mic_off : mute_off;
+    lv_obj_set_style_text_color(t.icon_lbl, off ? C_ACCENT : C_TEXT, 0);
+    lv_obj_set_style_text_color(t.desc_lbl, off ? C_ACCENT : C_MUTED, 0);
+    set_text(t.desc_lbl, off ? "kapalı" : "açık");
+    if (t.tg == TG_MIC) {
+        lv_label_set_text(t.icon_lbl, off ? ICON_MIC_OFF : ICON_MIC);
+    } else {
+        lv_label_set_text(t.icon_lbl, off ? ICON_VOLUME_OFF : ICON_VOLUME);
+    }
+    lv_obj_align(t.icon_lbl, LV_ALIGN_CENTER, 0, tile_icon_dy);
+    lv_obj_align(t.desc_lbl, LV_ALIGN_CENTER, 0, tile_desc_dy);
+}
+
 void build_shortcuts(lv_obj_t *page)
 {
-    const int w = 184, h = 178, gap = 12;
-    for (int i = 0; i < TILE_COUNT; i++) {
+    lv_obj_clean(page);
+    const bool three_rows = tile_count > 8;
+    const int w = 184, gap = three_rows ? 10 : 12, h = three_rows ? 124 : 178;
+    tile_icon_dy = three_rows ? -20 : -26;
+    tile_title_dy = three_rows ? 22 : 22;
+    tile_desc_dy = three_rows ? 42 : 44;
+    for (int i = 0; i < tile_count; i++) {
         Tile &t = tiles[i];
         int col = i % 4, row = i / 4;
         t.obj = lv_obj_create(page);
@@ -561,32 +654,268 @@ void build_shortcuts(lv_obj_t *page)
         lv_obj_add_event_cb(t.obj, tile_click_cb, LV_EVENT_CLICKED, &t);
 
         t.icon_lbl = label(t.obj, FICON, C_TEXT, t.icon);
-        lv_obj_align(t.icon_lbl, LV_ALIGN_CENTER, 0, -26);
-        lv_obj_t *title = label(t.obj, F16, C_TEXT, t.title);
-        lv_obj_align(title, LV_ALIGN_CENTER, 0, 22);
-        t.desc_lbl = label(t.obj, F12, C_MUTED, t.desc);
-        lv_obj_align(t.desc_lbl, LV_ALIGN_CENTER, 0, 44);
+        lv_obj_align(t.icon_lbl, LV_ALIGN_CENTER, 0, tile_icon_dy);
+        lv_obj_t *title = label(t.obj, F16, C_TEXT);
+        set_text(title, t.title);
+        lv_obj_set_width(title, w - 16);
+        lv_obj_set_style_text_align(title, LV_TEXT_ALIGN_CENTER, 0);
+        lv_label_set_long_mode(title, LV_LABEL_LONG_DOT);
+        lv_obj_align(title, LV_ALIGN_CENTER, 0, tile_title_dy);
+        t.desc_lbl = label(t.obj, F12, C_MUTED);
+        set_text(t.desc_lbl, t.desc);
+        lv_obj_align(t.desc_lbl, LV_ALIGN_CENTER, 0, tile_desc_dy);
+        apply_tile_toggle(t);
     }
 }
 
-void set_tile_toggle(const char *id, bool off)
+void set_tile(Tile &t, const char *id, const char *icon_name, const char *title, const char *desc, Toggle tg)
 {
-    for (int i = 0; i < TILE_COUNT; i++) {
-        Tile &t = tiles[i];
-        if (strcmp(t.id, id) != 0) {
-            continue;
-        }
-        lv_obj_set_style_text_color(t.icon_lbl, off ? C_ACCENT : C_TEXT, 0);
-        lv_obj_set_style_text_color(t.desc_lbl, off ? C_ACCENT : C_MUTED, 0);
-        set_text(t.desc_lbl, off ? "kapalı" : "açık");
-        if (strcmp(id, "mic") == 0) {
-            lv_label_set_text(t.icon_lbl, off ? ICON_MIC_OFF : ICON_MIC);
-        } else if (strcmp(id, "mute") == 0) {
-            lv_label_set_text(t.icon_lbl, off ? ICON_VOLUME_OFF : ICON_VOLUME);
-        }
-        lv_obj_align(t.icon_lbl, LV_ALIGN_CENTER, 0, -26);
-        lv_obj_align(t.desc_lbl, LV_ALIGN_CENTER, 0, 44);
+    strlcpy(t.id, id, sizeof(t.id));
+    strlcpy(t.title, title, sizeof(t.title));
+    strlcpy(t.desc, desc, sizeof(t.desc));
+    t.icon = ICON(icon_name);
+    t.tg = tg;
+}
+
+void load_default_tiles()
+{
+    tile_count = sizeof(DEFAULT_TILES) / sizeof(DEFAULT_TILES[0]);
+    for (int i = 0; i < tile_count; i++) {
+        const DefaultTile &d = DEFAULT_TILES[i];
+        set_tile(tiles[i], d.id, d.icon, d.title, d.desc, d.tg);
     }
+}
+
+void refresh_toggles()
+{
+    for (int i = 0; i < tile_count; i++) {
+        apply_tile_toggle(tiles[i]);
+    }
+}
+
+// =====================================================================================
+// Faz 7: bildirim balonu, kilit saati ekranı
+// =====================================================================================
+void notif_hide_cb(lv_timer_t *t)
+{
+    lv_obj_add_flag(notif_box, LV_OBJ_FLAG_HIDDEN);
+    notif_timer = nullptr;
+}
+
+void notif_click_cb(lv_event_t *e)
+{
+    lv_obj_add_flag(notif_box, LV_OBJ_FLAG_HIDDEN);  // dokununca kapanır
+    if (notif_timer) {
+        lv_timer_del(notif_timer);
+        notif_timer = nullptr;
+    }
+}
+
+void anim_y_cb(void *obj, int32_t v)
+{
+    lv_obj_set_y(static_cast<lv_obj_t *>(obj), static_cast<lv_coord_t>(v));
+}
+
+void build_notif()
+{
+    // Üst katmanda (kilit saati ekranının da üstünde, karartma perdesinin altında)
+    notif_box = lv_obj_create(lv_layer_top());
+    lv_obj_remove_style_all(notif_box);
+    lv_obj_set_size(notif_box, 600, 92);
+    lv_obj_set_pos(notif_box, 100, 6);
+    lv_obj_set_style_bg_color(notif_box, C_CARD2, 0);
+    lv_obj_set_style_bg_opa(notif_box, LV_OPA_COVER, 0);
+    lv_obj_set_style_radius(notif_box, 14, 0);
+    lv_obj_set_style_border_color(notif_box, C_LINE, 0);
+    lv_obj_set_style_border_width(notif_box, 1, 0);
+    lv_obj_set_style_shadow_color(notif_box, lv_color_black(), 0);
+    lv_obj_set_style_shadow_width(notif_box, 24, 0);
+    lv_obj_set_style_shadow_opa(notif_box, LV_OPA_60, 0);
+    lv_obj_clear_flag(notif_box, LV_OBJ_FLAG_SCROLLABLE);
+    lv_obj_add_flag(notif_box, LV_OBJ_FLAG_CLICKABLE);
+    lv_obj_add_event_cb(notif_box, notif_click_cb, LV_EVENT_CLICKED, nullptr);
+
+    notif_icon = label(notif_box, F22, C_ACCENT, LV_SYMBOL_BELL);
+    lv_obj_set_width(notif_icon, 30);
+    lv_obj_set_style_text_align(notif_icon, LV_TEXT_ALIGN_CENTER, 0);
+    lv_obj_set_pos(notif_icon, 14, 32);
+    notif_app = label(notif_box, F12, C_MUTED);
+    lv_obj_set_pos(notif_app, 58, 10);
+    lv_obj_set_width(notif_app, 520);
+    lv_label_set_long_mode(notif_app, LV_LABEL_LONG_DOT);
+    notif_title = label(notif_box, F16, C_TEXT);
+    lv_obj_set_pos(notif_title, 58, 28);
+    lv_obj_set_width(notif_title, 520);
+    lv_label_set_long_mode(notif_title, LV_LABEL_LONG_DOT);
+    notif_body = label(notif_box, F14, C_MUTED);
+    lv_obj_set_pos(notif_body, 58, 52);
+    lv_obj_set_size(notif_body, 520, 34);  // en çok 2 satır
+    lv_label_set_long_mode(notif_body, LV_LABEL_LONG_DOT);
+    lv_obj_add_flag(notif_box, LV_OBJ_FLAG_HIDDEN);
+}
+
+void build_lock_screen()
+{
+    lock_scr = lv_obj_create(lv_layer_top());
+    lv_obj_remove_style_all(lock_scr);
+    lv_obj_set_size(lock_scr, 800, 480);
+    lv_obj_set_style_bg_color(lock_scr, lv_color_black(), 0);
+    lv_obj_set_style_bg_opa(lock_scr, LV_OPA_COVER, 0);
+    lv_obj_clear_flag(lock_scr, LV_OBJ_FLAG_SCROLLABLE);
+    lv_obj_add_flag(lock_scr, LV_OBJ_FLAG_CLICKABLE);  // dokunma alttaki düğmelere geçmesin
+    lv_obj_add_event_cb(lock_scr, [](lv_event_t *e) { wake_requested = true; }, LV_EVENT_PRESSED, nullptr);
+
+    lv_obj_t *hint = label(lock_scr, F14, C_FAINT);
+    set_text(hint, "Bilgisayar kilitli");
+    lv_obj_align(hint, LV_ALIGN_TOP_MID, 0, 22);
+    lock_warn = label(lock_scr, F18, C_BAD, "");
+    lv_obj_align(lock_warn, LV_ALIGN_TOP_MID, 0, 50);
+
+    lock_clock = label(lock_scr, FCLOCK, lv_color_hex(0xc8d0d8), "--:--");
+    lv_obj_align(lock_clock, LV_ALIGN_CENTER, 0, -50);
+    lock_date = label(lock_scr, F22, C_MUTED, "");
+    lv_obj_align(lock_date, LV_ALIGN_CENTER, 0, 34);
+    lock_dev = label(lock_scr, F18, C_WARN, "");  // ör. "Claude: 1 oturum bekliyor"
+    lv_obj_align(lock_dev, LV_ALIGN_BOTTOM_MID, 0, -50);
+
+
+    lv_obj_add_flag(lock_scr, LV_OBJ_FLAG_HIDDEN);
+}
+
+
+// =====================================================================================
+// 4) Geliştirici (Faz 7B): Claude Code oturumları · GitHub Actions · sunucular
+// =====================================================================================
+constexpr int CC_ROWS = 5, GH_ROWS = 4, SRV_MAX = 8;
+struct Row {
+    lv_obj_t *dot, *name, *info;
+};
+Row cc_rows[CC_ROWS], gh_rows[GH_ROWS];
+lv_obj_t *cc_count, *cc_empty, *gh_foot, *gh_empty;
+struct Chip {
+    lv_obj_t *box, *dot, *name, *info;
+};
+Chip chips[SRV_MAX];
+lv_obj_t *srv_empty;
+
+lv_obj_t *dot(lv_obj_t *parent, int x, int y, int d)
+{
+    lv_obj_t *o = lv_obj_create(parent);
+    lv_obj_remove_style_all(o);
+    lv_obj_set_pos(o, x, y);
+    lv_obj_set_size(o, d, d);
+    lv_obj_set_style_radius(o, LV_RADIUS_CIRCLE, 0);
+    lv_obj_set_style_bg_opa(o, LV_OPA_COVER, 0);
+    lv_obj_set_style_bg_color(o, C_FAINT, 0);
+    lv_obj_clear_flag(o, LV_OBJ_FLAG_CLICKABLE);
+    return o;
+}
+
+Row make_row(lv_obj_t *c, int y, int name_w)
+{
+    Row r;
+    r.dot = dot(c, 16, y + 6, 10);
+    r.name = label(c, F16, C_TEXT);
+    lv_obj_set_pos(r.name, 34, y);
+    lv_obj_set_width(r.name, name_w);
+    lv_label_set_long_mode(r.name, LV_LABEL_LONG_DOT);
+    int info_w = 364 - 34 - name_w - 8;
+    r.info = label_right(c, F14, C_MUTED, 364, y + 2, info_w);
+    lv_label_set_long_mode(r.info, LV_LABEL_LONG_DOT);
+    return r;
+}
+
+void row_visible(Row &r, bool on)
+{
+    lv_obj_t *objs[3] = {r.dot, r.name, r.info};
+    for (lv_obj_t *o : objs) {
+        if (on) {
+            lv_obj_clear_flag(o, LV_OBJ_FLAG_HIDDEN);
+        } else {
+            lv_obj_add_flag(o, LV_OBJ_FLAG_HIDDEN);
+        }
+    }
+}
+
+void show(lv_obj_t *o, bool on)
+{
+    if (on) {
+        lv_obj_clear_flag(o, LV_OBJ_FLAG_HIDDEN);
+    } else {
+        lv_obj_add_flag(o, LV_OBJ_FLAG_HIDDEN);
+    }
+}
+
+// Geçen süre: "45 sn", "12 dk", "3 sa", "2 gün"
+void fmt_ago(char *out, size_t n, long sec)
+{
+    if (sec < 60) {
+        snprintf(out, n, "%ld sn", sec < 0 ? 0 : sec);
+    } else if (sec < 3600) {
+        snprintf(out, n, "%ld dk", sec / 60);
+    } else if (sec < 86400) {
+        snprintf(out, n, "%ld sa", sec / 3600);
+    } else {
+        snprintf(out, n, "%ld gün", sec / 86400);
+    }
+}
+
+void build_dev(lv_obj_t *page)
+{
+    lv_obj_t *cc = card(page, 14, 4, 380, 228);
+    caption(cc, 16, 14, "CLAUDE CODE");
+    cc_count = label_right(cc, F12, C_FAINT, 364, 14, 200);
+    for (int i = 0; i < CC_ROWS; i++) {
+        cc_rows[i] = make_row(cc, 42 + i * 36, 170);
+        row_visible(cc_rows[i], false);
+    }
+    cc_empty = label(cc, F14, C_FAINT);
+    set_text(cc_empty, "Açık oturum yok");
+    lv_obj_set_pos(cc_empty, 16, 100);
+
+    lv_obj_t *gh = card(page, 406, 4, 380, 228);
+    caption(gh, 16, 14, "GITHUB ACTIONS");
+    for (int i = 0; i < GH_ROWS; i++) {
+        gh_rows[i] = make_row(gh, 42 + i * 36, 170);
+        row_visible(gh_rows[i], false);
+    }
+    gh_foot = label(gh, F12, C_MUTED, "");
+    lv_obj_set_pos(gh_foot, 16, 198);
+    lv_obj_set_width(gh_foot, 348);
+    lv_label_set_long_mode(gh_foot, LV_LABEL_LONG_DOT);
+    gh_empty = label(gh, F14, C_FAINT);
+    set_text(gh_empty, "yükleniyor…");
+    lv_obj_set_pos(gh_empty, 16, 100);
+    lv_obj_set_width(gh_empty, 348);
+    lv_label_set_long_mode(gh_empty, LV_LABEL_LONG_DOT);
+
+    lv_obj_t *sv = card(page, 14, 244, 772, 150);
+    caption(sv, 14, 12, "SUNUCULAR");
+    for (int i = 0; i < SRV_MAX; i++) {
+        Chip &ch = chips[i];
+        ch.box = lv_obj_create(sv);
+        lv_obj_remove_style_all(ch.box);
+        lv_obj_set_pos(ch.box, 14 + (i % 4) * 188, 36 + (i / 4) * 54);
+        lv_obj_set_size(ch.box, 178, 46);
+        lv_obj_set_style_bg_color(ch.box, C_CARD2, 0);
+        lv_obj_set_style_bg_opa(ch.box, LV_OPA_COVER, 0);
+        lv_obj_set_style_radius(ch.box, 10, 0);
+        lv_obj_clear_flag(ch.box, LV_OBJ_FLAG_CLICKABLE);
+        lv_obj_clear_flag(ch.box, LV_OBJ_FLAG_SCROLLABLE);
+        ch.dot = dot(ch.box, 10, 18, 10);
+        ch.name = label(ch.box, F14, C_TEXT, "");
+        lv_obj_set_pos(ch.name, 28, 5);
+        lv_obj_set_width(ch.name, 142);
+        lv_label_set_long_mode(ch.name, LV_LABEL_LONG_DOT);
+        ch.info = label(ch.box, F12, C_MUTED, "");
+        lv_obj_set_pos(ch.info, 28, 25);
+        lv_obj_set_width(ch.info, 142);
+        lv_label_set_long_mode(ch.info, LV_LABEL_LONG_DOT);
+        lv_obj_add_flag(ch.box, LV_OBJ_FLAG_HIDDEN);
+    }
+    srv_empty = label(sv, F14, C_FAINT);
+    set_text(srv_empty, "Ayar dosyasında [[sunucu]] yok");
+    lv_obj_set_pos(srv_empty, 14, 60);
 }
 
 }  // namespace
@@ -617,6 +946,17 @@ void ui_create()
     lv_obj_set_style_bg_opa(link_dot, LV_OPA_COVER, 0);
     lv_obj_set_style_bg_color(link_dot, C_BAD, 0);
 
+    // Uyarı (sayfa adının yerine çıkar) ve hava durumu (bağlantı durumunun solunda)
+    warn_pill = label(scr, F14, C_TEXT, "");
+    lv_obj_set_style_bg_color(warn_pill, C_BAD, 0);
+    lv_obj_set_style_bg_opa(warn_pill, LV_OPA_COVER, 0);
+    lv_obj_set_style_radius(warn_pill, 12, 0);
+    lv_obj_set_style_pad_hor(warn_pill, 12, 0);
+    lv_obj_set_style_pad_ver(warn_pill, 4, 0);
+    lv_obj_add_flag(warn_pill, LV_OBJ_FLAG_HIDDEN);
+    dev_top = label_right(scr, F14, C_WARN, 640, 13, 190);
+    lv_obj_add_flag(dev_top, LV_OBJ_FLAG_HIDDEN);
+
     // Sayfalar
     tileview = lv_tileview_create(scr);
     lv_obj_set_pos(tileview, 0, TOP_H);
@@ -626,13 +966,17 @@ void ui_create()
     lv_obj_add_event_cb(tileview, tile_changed_cb, LV_EVENT_VALUE_CHANGED, nullptr);
     lv_obj_t *t0 = lv_tileview_add_tile(tileview, 0, 0, LV_DIR_RIGHT);
     lv_obj_t *t1 = lv_tileview_add_tile(tileview, 1, 0, LV_DIR_LEFT | LV_DIR_RIGHT);
-    lv_obj_t *t2 = lv_tileview_add_tile(tileview, 2, 0, LV_DIR_LEFT);
+    lv_obj_t *t2 = lv_tileview_add_tile(tileview, 2, 0, LV_DIR_LEFT | LV_DIR_RIGHT);
+    lv_obj_t *t3 = lv_tileview_add_tile(tileview, 3, 0, LV_DIR_LEFT);
     build_system(t0);
     build_media(t1);
+    shortcut_page = t2;
+    load_default_tiles();
     build_shortcuts(t2);
+    build_dev(t3);
 
     // Sayfa noktaları
-    for (int i = 0; i < 3; i++) {
+    for (int i = 0; i < PAGES; i++) {
         page_dots[i] = lv_obj_create(scr);
         lv_obj_remove_style_all(page_dots[i]);
         lv_obj_set_size(page_dots[i], i == 0 ? 20 : 7, 7);
@@ -650,7 +994,7 @@ void ui_create()
     lv_obj_set_flex_align(row, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
     lv_obj_set_style_pad_column(row, 8, 0);
     lv_obj_clear_flag(row, LV_OBJ_FLAG_CLICKABLE);
-    for (int i = 0; i < 3; i++) {
+    for (int i = 0; i < PAGES; i++) {
         lv_obj_set_parent(page_dots[i], row);
     }
 
@@ -662,6 +1006,19 @@ void ui_create()
     lv_obj_set_style_pad_hor(toast, 16, 0);
     lv_obj_set_style_pad_ver(toast, 9, 0);
     lv_obj_add_flag(toast, LV_OBJ_FLAG_HIDDEN);
+
+    // Üst katman, alttan üste: kilit saati · bildirim balonu · karartma perdesi
+    build_lock_screen();
+    build_notif();
+    sleep_overlay = lv_obj_create(lv_layer_top());
+    lv_obj_remove_style_all(sleep_overlay);
+    lv_obj_set_size(sleep_overlay, 800, 480);
+    lv_obj_set_style_bg_color(sleep_overlay, lv_color_black(), 0);
+    lv_obj_set_style_bg_opa(sleep_overlay, LV_OPA_COVER, 0);
+    lv_obj_add_flag(sleep_overlay, LV_OBJ_FLAG_CLICKABLE);
+    // dokunma burada tükenir, alttaki düğmelere geçmez
+    lv_obj_add_event_cb(sleep_overlay, [](lv_event_t *e) { wake_requested = true; }, LV_EVENT_PRESSED, nullptr);
+    lv_obj_add_flag(sleep_overlay, LV_OBJ_FLAG_HIDDEN);
 
     ui_set_link(false);
 }
@@ -686,6 +1043,12 @@ void ui_update_stat(JsonObjectConst o)
         lv_label_set_text(lbl_clock, o["clock"].as<const char *>());
         set_text(lbl_date, o["date"] | "");
         lv_obj_align_to(lbl_date, lbl_clock, LV_ALIGN_OUT_RIGHT_BOTTOM, 14, -2);
+        if (!lv_obj_has_flag(lock_scr, LV_OBJ_FLAG_HIDDEN)) {  // kilit saati yalnızca görünürken çizilsin
+            if (strcmp(lv_label_get_text(lock_clock), o["clock"].as<const char *>()) != 0) {
+                lv_label_set_text(lock_clock, o["clock"].as<const char *>());
+            }
+            set_text(lock_date, o["date"] | "");
+        }
     }
 
     // CPU
@@ -829,8 +1192,12 @@ void ui_update_vol(JsonObjectConst o)
     }
     lv_label_set_text(v_icon, mute ? LV_SYMBOL_MUTE : LV_SYMBOL_VOLUME_MAX);
     lv_obj_set_style_text_color(v_icon, mute ? C_ACCENT : C_MUTED, 0);
-    set_tile_toggle("mute", mute);
-    set_tile_toggle("mic", (o["mic_mute"] | 0) != 0);
+    bool mic = (o["mic_mute"] | 0) != 0;
+    if (mute != mute_off || mic != mic_off) {
+        mute_off = mute;
+        mic_off = mic;
+        refresh_toggles();
+    }
 }
 
 void ui_set_art(const uint8_t *rgb565, int w, int h)
@@ -854,28 +1221,247 @@ void ui_clear_art()
     lv_obj_clear_flag(art_note, LV_OBJ_FLAG_HIDDEN);
 }
 
-// ---- Ekran karartma ----
-namespace {
-lv_obj_t *sleep_overlay = nullptr;
-volatile bool wake_requested = false;
-
-void overlay_press_cb(lv_event_t *e)
+// ---- Faz 7: kısayollar, bildirim, uyarı, hava durumu, kilit saati ----
+void ui_set_tiles(JsonArrayConst items)
 {
-    wake_requested = true;  // dokunma burada tükenir, alttaki düğmelere geçmez
+    int n = 0;
+    for (JsonObjectConst it : items) {
+        if (n >= MAX_TILES) {
+            break;
+        }
+        const char *id = it["id"] | "";
+        if (!id[0]) {
+            continue;
+        }
+        const char *tg = it["tg"] | "";
+        Toggle t = strcmp(tg, "mic") == 0 ? TG_MIC : strcmp(tg, "mute") == 0 ? TG_MUTE : TG_NONE;
+        set_tile(tiles[n++], id, it["ic"] | "star", it["ti"] | "?", it["de"] | "", t);
+    }
+    if (n == 0) {
+        load_default_tiles();
+    } else {
+        tile_count = n;
+    }
+    build_shortcuts(shortcut_page);
 }
-}  // namespace
 
+void ui_show_notif(const char *app, const char *title, const char *body, const char *lvl, uint32_t ms)
+{
+    const char *icon = LV_SYMBOL_BELL;
+    lv_color_t color = C_ACCENT;
+    if (strcmp(lvl, "ok") == 0) {
+        icon = LV_SYMBOL_OK;
+        color = C_OK;
+    } else if (strcmp(lvl, "err") == 0) {
+        icon = LV_SYMBOL_CLOSE;
+        color = C_BAD;
+    } else if (strcmp(lvl, "wait") == 0) {
+        icon = LV_SYMBOL_WARNING;
+        color = C_WARN;
+    }
+    lv_label_set_text(notif_icon, icon);
+    lv_obj_set_style_text_color(notif_icon, color, 0);
+    lv_obj_set_style_border_color(notif_box, strcmp(lvl, "info") == 0 ? C_LINE : color, 0);
+    set_text(notif_app, app);
+    set_text(notif_title, title && title[0] ? title : body);
+    set_text(notif_body, title && title[0] ? body : "");
+    bool was_hidden = lv_obj_has_flag(notif_box, LV_OBJ_FLAG_HIDDEN);
+    lv_obj_clear_flag(notif_box, LV_OBJ_FLAG_HIDDEN);
+    if (was_hidden) {  // yukarıdan kayarak gelsin
+        lv_anim_t a;
+        lv_anim_init(&a);
+        lv_anim_set_var(&a, notif_box);
+        lv_anim_set_exec_cb(&a, anim_y_cb);
+        lv_anim_set_values(&a, -100, 6);
+        lv_anim_set_time(&a, 220);
+        lv_anim_set_path_cb(&a, lv_anim_path_ease_out);
+        lv_anim_start(&a);
+    }
+    if (notif_timer) {
+        lv_timer_set_period(notif_timer, ms);
+        lv_timer_reset(notif_timer);
+    } else {
+        notif_timer = lv_timer_create(notif_hide_cb, ms, nullptr);
+        lv_timer_set_repeat_count(notif_timer, 1);
+    }
+}
+
+bool ui_set_warn(const char *text)
+{
+    bool was = !lv_obj_has_flag(warn_pill, LV_OBJ_FLAG_HIDDEN);
+    bool now = text && text[0];
+    if (now) {
+        char buf[160];
+        snprintf(buf, sizeof(buf), LV_SYMBOL_WARNING " %s", text);
+        if (strcmp(lv_label_get_text(warn_pill), buf) != 0) {
+            set_text(warn_pill, buf);
+            set_text(lock_warn, buf);
+            lv_obj_align(warn_pill, LV_ALIGN_TOP_MID, 0, 8);
+            lv_obj_align(lock_warn, LV_ALIGN_TOP_MID, 0, 50);
+        }
+        lv_obj_clear_flag(warn_pill, LV_OBJ_FLAG_HIDDEN);
+        lv_obj_clear_flag(lock_warn, LV_OBJ_FLAG_HIDDEN);
+        lv_obj_add_flag(lbl_page, LV_OBJ_FLAG_HIDDEN);
+    } else if (was) {
+        lv_obj_add_flag(warn_pill, LV_OBJ_FLAG_HIDDEN);
+        lv_obj_add_flag(lock_warn, LV_OBJ_FLAG_HIDDEN);
+        lv_obj_clear_flag(lbl_page, LV_OBJ_FLAG_HIDDEN);
+    }
+    return now && !was;
+}
+
+// ---- Faz 7B: Geliştirici sayfası ----
+void ui_update_cc(JsonObjectConst o)
+{
+    JsonArrayConst items = o["items"];
+    int n = 0;
+    char buf[96], ago[24];
+    for (JsonObjectConst it : items) {
+        if (n >= CC_ROWS) {
+            break;
+        }
+        Row &r = cc_rows[n++];
+        const char *st = it["s"] | "idle";
+        fmt_ago(ago, sizeof(ago), it["age"] | 0L);
+        lv_color_t c = C_FAINT;
+        if (strcmp(st, "work") == 0) {
+            c = C_ACCENT;
+            snprintf(buf, sizeof(buf), "çalışıyor · %s", ago);
+        } else if (strcmp(st, "wait") == 0) {
+            c = C_WARN;
+            snprintf(buf, sizeof(buf), "%s · %s", it["m"] | "bekliyor", ago);
+        } else if (strcmp(st, "done") == 0) {
+            c = C_OK;
+            snprintf(buf, sizeof(buf), "bitti · %s", ago);
+        } else {
+            snprintf(buf, sizeof(buf), "boşta");
+        }
+        set_text(r.name, it["p"] | "?");
+        set_text(r.info, buf);
+        lv_obj_set_style_text_color(r.info, strcmp(st, "idle") == 0 ? C_FAINT : c, 0);
+        lv_obj_set_style_bg_color(r.dot, c, 0);
+        row_visible(r, true);
+    }
+    for (int i = n; i < CC_ROWS; i++) {
+        row_visible(cc_rows[i], false);
+    }
+    show(cc_empty, n == 0);
+    int total = items.size();
+    if (total) {
+        lv_label_set_text_fmt(cc_count, "%d oturum", total);
+    } else {
+        lv_label_set_text(cc_count, "");
+    }
+
+    // Üst şerit ve kilit ekranı: bekleyen oturum varsa sarı, yalnızca çalışan varsa sönük
+    int wait = o["wait"] | 0, work = o["work"] | 0;
+    if (wait) {
+        snprintf(buf, sizeof(buf), "Claude: %d bekliyor", wait);
+        set_text(dev_top, buf);
+        lv_obj_set_style_text_color(dev_top, C_WARN, 0);
+        snprintf(buf, sizeof(buf), "Claude: %d oturum seni bekliyor", wait);
+        set_text(lock_dev, buf);
+        lv_obj_align(lock_dev, LV_ALIGN_BOTTOM_MID, 0, -50);
+    } else if (work) {
+        set_text(dev_top, "Claude çalışıyor");
+        lv_obj_set_style_text_color(dev_top, C_MUTED, 0);
+    }
+    show(dev_top, wait || work);
+    show(lock_dev, wait);
+}
+
+void ui_update_gh(JsonObjectConst o)
+{
+    char buf[96], ago[24];
+    if (!(o["ok"] | 0)) {
+        for (Row &r : gh_rows) {
+            row_visible(r, false);
+        }
+        snprintf(buf, sizeof(buf), "GitHub: %s", o["err"] | "?");
+        set_text(gh_empty, buf);
+        show(gh_empty, true);
+        lv_label_set_text(gh_foot, "");
+        return;
+    }
+    int n = 0;
+    for (JsonObjectConst it : o["runs"].as<JsonArrayConst>()) {
+        if (n >= GH_ROWS) {
+            break;
+        }
+        Row &r = gh_rows[n++];
+        const char *st = it["s"] | "";
+        lv_color_t c = strcmp(st, "ok") == 0     ? C_OK
+                       : strcmp(st, "fail") == 0 ? C_BAD
+                       : strcmp(st, "run") == 0  ? C_ACCENT
+                       : strcmp(st, "wait") == 0 ? C_WARN
+                                                 : C_FAINT;
+        fmt_ago(ago, sizeof(ago), it["age"] | 0L);
+        const char *what = strcmp(st, "run") == 0    ? "çalışıyor"
+                           : strcmp(st, "wait") == 0 ? "sırada"
+                           : strcmp(st, "fail") == 0 ? "başarısız"
+                                                     : (it["w"] | "");
+        snprintf(buf, sizeof(buf), "%s · %s", what, ago);
+        set_text(r.name, it["r"] | "?");
+        set_text(r.info, buf);
+        lv_obj_set_style_text_color(r.info, strcmp(st, "fail") == 0 ? C_BAD : C_MUTED, 0);
+        lv_obj_set_style_bg_color(r.dot, c, 0);
+        row_visible(r, true);
+    }
+    for (int i = n; i < GH_ROWS; i++) {
+        row_visible(gh_rows[i], false);
+    }
+    set_text(gh_empty, "Actions çalışması yok");
+    show(gh_empty, n == 0);
+    snprintf(buf, sizeof(buf), "İnceleme bekleyen PR: %d · açık PR: %d · bildirim: %d", o["rev"] | 0,
+             o["prs"] | 0, o["ntf"] | 0);
+    set_text(gh_foot, buf);
+}
+
+void ui_update_srv(JsonObjectConst o)
+{
+    int n = 0;
+    char buf[48];
+    for (JsonObjectConst it : o["items"].as<JsonArrayConst>()) {
+        if (n >= SRV_MAX) {
+            break;
+        }
+        Chip &ch = chips[n++];
+        int ok = it["ok"] | -1;
+        set_text(ch.name, it["n"] | "?");
+        if (ok == 0) {
+            set_text(ch.info, "yanıt yok");
+        } else if (it["ms"].isNull()) {
+            set_text(ch.info, "denetleniyor…");
+        } else if (!it["ssl"].isNull()) {
+            snprintf(buf, sizeof(buf), "%d ms · SSL %d gün", it["ms"].as<int>(), it["ssl"].as<int>());
+            set_text(ch.info, buf);
+        } else {
+            lv_label_set_text_fmt(ch.info, "%d ms", it["ms"].as<int>());
+        }
+        lv_obj_set_style_text_color(ch.info, ok == 0 ? C_BAD : C_MUTED, 0);
+        lv_obj_set_style_bg_color(ch.dot, ok == 1 ? C_OK : ok == 0 ? C_BAD : C_WARN, 0);
+        lv_obj_clear_flag(ch.box, LV_OBJ_FLAG_HIDDEN);
+    }
+    for (int i = n; i < SRV_MAX; i++) {
+        lv_obj_add_flag(chips[i].box, LV_OBJ_FLAG_HIDDEN);
+    }
+    show(srv_empty, n == 0);
+}
+
+void ui_set_lock_clock(bool on)
+{
+    if (on) {
+        lv_obj_clear_flag(lock_scr, LV_OBJ_FLAG_HIDDEN);
+        lv_label_set_text(lock_clock, lv_label_get_text(lbl_clock));  // görünür olur olmaz güncel saat
+        lv_label_set_text(lock_date, lv_label_get_text(lbl_date));
+    } else {
+        lv_obj_add_flag(lock_scr, LV_OBJ_FLAG_HIDDEN);
+    }
+}
+
+// ---- Ekran karartma ----
 void ui_set_sleep(bool dark)
 {
-    if (!sleep_overlay) {
-        sleep_overlay = lv_obj_create(lv_layer_top());
-        lv_obj_remove_style_all(sleep_overlay);
-        lv_obj_set_size(sleep_overlay, 800, 480);
-        lv_obj_set_style_bg_color(sleep_overlay, lv_color_black(), 0);
-        lv_obj_set_style_bg_opa(sleep_overlay, LV_OPA_COVER, 0);
-        lv_obj_add_flag(sleep_overlay, LV_OBJ_FLAG_CLICKABLE);
-        lv_obj_add_event_cb(sleep_overlay, overlay_press_cb, LV_EVENT_PRESSED, nullptr);
-    }
     if (dark) {
         lv_obj_clear_flag(sleep_overlay, LV_OBJ_FLAG_HIDDEN);
     } else {

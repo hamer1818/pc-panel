@@ -1,8 +1,10 @@
 """Karttaki Kısayollar sayfasının bilgisayardaki karşılıkları.
 
-GÜVENLİK: Kart yalnızca aşağıdaki sözlükte bulunan bir kimlik (`id`) gönderebilir. Karttan gelen hiçbir metin
-komut satırına eklenmez; bilinmeyen kimlikler reddedilir. Yeni kısayol eklemek için bu dosyayı düzenleyin
-(kart tarafında da `firmware/src/ui.cpp` içindeki kutu listesine eklenmeli).
+Kısayollar ayar dosyasından gelir (bkz. config.py, deploy/ayarlar.ornek.toml).
+
+GÜVENLİK: Kart yalnızca bir kısayol kimliği (`id`) gönderir. Bilgisayar bu kimliği o anki ayarlardaki listede arar
+ve oradaki adımları uygular. Karttan gelen hiçbir metin komut satırına eklenmez; bilinmeyen kimlikler reddedilir.
+Komutlar kabuk olmadan (argüman listesiyle) çalıştırılır.
 """
 
 from __future__ import annotations
@@ -12,24 +14,14 @@ import os
 import subprocess
 
 from . import audio
+from .config import Shortcut, Step
 
-# Uygulamaları masaüstü kimlikleriyle başlatır (KDE `kstart`): pencere varsa öne gelir, yoksa açılır.
-APPS: dict[str, list[str]] = {
-    "terminal": ["kstart", "--application", "org.kde.konsole"],
-    "browser": ["kstart", "--application", "userapp-Zen-83YBT3"],   # varsayılan tarayıcı: Zen
-    "files": ["kstart", "--application", "org.kde.dolphin"],
-    "spotify": ["kstart", "--application", "spotify"],
+SPECIAL_ARGV = {
     # Spectacle: arka planda (-b), bildirim olmadan (-n), tam ekran (-f); varsayılan klasöre kaydeder
     "screenshot": ["spectacle", "-b", "-n", "-f"],
     "lock": ["loginctl", "lock-session"],
 }
-
-TOGGLES = {
-    "mute": audio.toggle_mute,
-    "mic": audio.toggle_mic,
-}
-
-ALL_IDS = set(APPS) | set(TOGGLES)
+TOGGLES = {"mute": audio.toggle_mute, "mic": audio.toggle_mic}
 
 
 def _spawn(argv: list[str]) -> bool:
@@ -41,10 +33,29 @@ def _spawn(argv: list[str]) -> bool:
         return False
 
 
-async def run(shortcut_id: str) -> bool:
-    if shortcut_id in TOGGLES:
-        return await TOGGLES[shortcut_id]()
-    argv = APPS.get(shortcut_id)
-    if argv is None:
-        return False
+async def _step(step: Step, media) -> bool:
+    kind, v = step.kind, step.value
+    if kind == "bekle":
+        await asyncio.sleep(float(v))
+        return True
+    if kind == "ozel":
+        if v in TOGGLES:
+            return await TOGGLES[v]()
+        return await asyncio.to_thread(_spawn, SPECIAL_ARGV[v])
+    if kind == "medya":
+        await media.poll()  # etkin çalar güncel olsun (ör. makroda az önce açılan Spotify)
+        return await media.command(str(v))
+    argv = {
+        "uygulama": lambda: ["kstart", "--application", str(v)],  # pencere varsa öne gelir, yoksa açılır
+        "komut": lambda: list(v),
+        "adres": lambda: ["xdg-open", str(v)],
+    }[kind]()
     return await asyncio.to_thread(_spawn, argv)
+
+
+async def run(sc: Shortcut, media) -> bool:
+    """Kısayolun adımlarını sırayla uygular. Bir adım başarısız olursa durur."""
+    for step in sc.steps:
+        if not await _step(step, media):
+            return False
+    return True

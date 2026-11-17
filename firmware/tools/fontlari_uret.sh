@@ -46,9 +46,21 @@ done
 # kilit, mikrofon, mikrofon kapalı, kamera, ses açık, ses kapalı, terminal, küre, klasör, Spotify,
 # önceki, oynat, duraklat, sonraki, müzik notası
 ICONS="0xF023,0xF130,0xF131,0xF030,0xF028,0xF6A9,0xF120,0xF0AC,0xF07B,0xF1BC,0xF048,0xF04B,0xF04C,0xF051,0xF001"
+# Faz 7 (ayar dosyasındaki ikon adları, ui.cpp ICONS tablosu): kod, oyun kolu, Steam, Discord, Firefox, Chrome,
+# YouTube, GitHub, zarf, takvim, hesap makinesi, dişli, güç, ay, yenile, masaüstü, indir, ev, şimşek, pano,
+# resim, video, kulaklık, yıldız, zil, ara, klavye, dosya, roket, TV, Wi‑Fi, Telegram, WhatsApp, uyarı üçgeni
+ICONS="$ICONS,0xF121,0xF11B,0xF1B6,0xF392,0xF269,0xF268,0xF167,0xF09B,0xF0E0,0xF073,0xF1EC,0xF013,0xF011,0xF186"
+ICONS="$ICONS,0xF2F1,0xF108,0xF019,0xF015,0xF0E7,0xF328,0xF03E,0xF03D,0xF025,0xF005,0xF0F3,0xF002,0xF11C,0xF15C"
+ICONS="$ICONS,0xF135,0xF26C,0xF1EB,0xF2C6,0xF232,0xF071"
 echo "icon_font_40"
 "$CONV" --bpp 4 --size 40 --no-compress \
     --font "$FA" -r "$ICONS" \
     --format lvgl -o "$OUT/icon_font_40.c"
+
+# Kilit ekranındaki büyük saat (Faz 7): yalnızca rakamlar, iki nokta, tire, boşluk
+echo "clock_font_120"
+"$CONV" --bpp 4 --size 120 --no-compress \
+    --font "$TEXT" -r "0x20,0x2D,0x30-0x3A" \
+    --format lvgl -o "$OUT/clock_font_120.c"
 
 echo "Tamam: $(ls "$OUT" | wc -l) dosya → $OUT"

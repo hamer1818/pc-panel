@@ -2,6 +2,55 @@
 
 Her karar: tarih · karar · düşünülen seçenekler · neden.
 
+## 2026-11-17 · Faz 7B: geliştirici paketi — Claude Code, uzun komut, GitHub, sunucular
+Kullanıcı yazılımcı; seçtiği dört özellik: 1 Claude Code durumu, 2 uzun komut bildirimi, 3 GitHub, 4 sunucu sağlığı.
+- **Dış olaylar için yerel Unix soketi** (`$XDG_RUNTIME_DIR/pc-panel.sock`, 0600) + `pc-panel-olay` aracı.
+  Seçenekler: soket · D-Bus servisi · dosya bırakma. Neden: soket en basiti, yalnızca bu kullanıcı erişebiliyor,
+  servis kapalıyken araç sessizce çıkıyor. Araç yalnızca standart kütüphaneyi kullanıyor, olay başına ≈13 ms.
+- **Claude Code: hook'lar** (`~/.claude/settings.json`, `deploy/claude_hooks.py` ile eklenip kaldırılıyor, önce yedek
+  alınıyor). Seçenekler: hook'lar · oturum dosyalarını (transcript) izlemek · süreç listesine bakmak. Neden:
+  "izin bekliyor" ve "bitti" bilgisi yalnızca hook'larda var. Gönderilen alanlar: olay adı, oturum kimliği, klasör
+  ve bildirim metni; istem ve araç girdileri gönderilmiyor. PostToolUse, izin verildikten sonra durumu "çalışıyor"a
+  döndürmek için eklendi; her araç çağrısına ≈13 ms ekliyor. "Bitti" bildirimi yalnızca 20 sn'den uzun işlerde geliyor.
+- **Uzun komut: fish `fish_postexec`** (`~/.config/fish/conf.d/pc-panel.fish`). fish ≥ 5 sn süren her komutu
+  bildiriyor; eşik (30 sn) ve hariç tutulan etkileşimli programlar (editörler, ssh, claude…) serviste. Böylece
+  ayarlar fish dosyasına dokunmadan değişebiliyor.
+- **GitHub: `gh api`.** Ayrı bir anahtar saklanmıyor, gh'nin kendi oturumu kullanılıyor. Depolar yazılmadıysa en son
+  push yapılan 6 depo (fork ve arşiv hariç). 2 dk'da bir ≈10 istek (saatte ≈300; sınır 5000). İlk yoklamada
+  bildirim yok. Başarı bildirimi yalnızca push / PR / elle başlatılan çalışmalarda (zamanlanmış "Generate Snake" gibi
+  işler gürültü yapmasın); başarısızlık her zaman bildiriliyor.
+- **Sunucular: HTTP'de 500'den küçük her yanıt "ayakta".** API kökleri 404 dönebiliyor (api.hamza.tr); bu da
+  sunucunun cevap verdiğini gösteriyor. Art arda 2 başarısız denetimde "kapalı" sayılıyor. SSL kalan gün 6 saatte bir.
+- Kartta yeni 4. sayfa "Geliştirici"; Claude'un bekleyen oturumları üst şeritte ve kilit ekranında da gösteriliyor.
+
+## 2026-11-17 · Faz 7: ayarlar tek bir TOML dosyasında, servis yeniden başlatılmadan uygulanır
+- Yer: `~/.config/pc-panel/ayarlar.toml` (örnek `deploy/ayarlar.ornek.toml`; `kur.sh` yoksa kopyalar).
+- Seçenekler: TOML · JSON · YAML · kartta ayar ekranı
+- Neden: TOML Python 3.12'de hazır (`tomllib`, ek paket yok), yorum yazılabiliyor ve elle düzenlemesi kolay.
+  Kartta ayar ekranı yapmak çok daha fazla iş, metin girmek de zor. Dosya 3 sn'de bir yoklanıyor; hatalı dosyada
+  son geçerli ayarlarla devam ediliyor.
+- Kısayollar kartta değil bilgisayarda tanımlı: kart yalnızca kutu bilgisini (ad, ikon adı, açıklama) alıyor.
+  Kart yazılımını yeniden yüklemeden kısayol değişiyor. En çok 12 kutu (4×3); ikonlar sabit bir ad listesinden
+  seçiliyor, çünkü ikon glifleri yazı tipine derlenmiş durumda.
+
+## 2026-11-17 · Faz 7: bildirimler D-Bus izleyici (BecomeMonitor) ile okunur
+- Seçenekler: `BecomeMonitor` izleyici bağlantısı · kendi bildirim sunucumuz (KDE'ninkinin yerine geçerdi) ·
+  `dbus-monitor` alt süreci
+- Neden: izleyici bağlantı bildirimlere dokunmuyor, KDE bildirimleri her zamanki gibi çalışıyor. Ek program
+  gerektirmiyor (dbus-fast zaten var). Dikkat: izleyici bağlantı mesaj gönderemez. Bu yüzden ileti işleyici
+  her zaman `True` döndürüyor, yoksa dbus-fast "bilinmeyen yöntem" yanıtı göndermeye kalkıyor.
+- Gizlilik: PC kilitliyken bildirim gönderilmiyor (ayarla açılabilir); hariç tutulan uygulamalar var (varsayılan Spotify).
+
+## 2026-11-17 · Faz 7: hava durumu eklendi, sonra kaldırıldı
+- 7A'da Open-Meteo ile eklenmişti (şehir ayar dosyasında). Kullanıcı istemedi ("her yerde bakabilirim"); kart 0.8.0'da
+  ve serviste kaldırıldı, yazı tiplerinden hava ikonları çıkarıldı.
+
+## 2026-11-17 · Faz 7: kilit saati — kilitliyken önce saat, süre dolunca karanlık
+- Arka ışık yalnızca aç/kapa olduğu için "sönük saat" kısarak değil, siyah zemin ve gri rakamlarla yapılıyor.
+- Varsayılan süre 10 dk (`sure_dk`, 0 = sürekli). Kilitliyken dokunma artık paneli değil saati açıyor; yani
+  kilitliyken karttan kısayol çalıştırılamıyor (önceden 20 sn panel açılıyordu). Kilit saati kapalıysa eski davranış sürüyor.
+- Saat rakamları için ayrı bir 120 px yazı tipi üretildi (yalnızca 0–9 ve ":", ≈ 40 KB).
+
 ## 2026-11-17 · Faz 4 arayüz tercihleri (kullanıcı seçti)
 - **İçerik (Sistem sayfası):** hepsi. CPU ve GPU yükü ile sıcaklığı; RAM ve VRAM; diskler ve ağ hızı;
   son 60 sn grafikleri.

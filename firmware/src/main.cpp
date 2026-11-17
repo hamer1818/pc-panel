@@ -2,7 +2,7 @@
  * PC Panel — kart yazılımı
  *
  * Bilgisayardan seri port (CH343, 921600 baud) ile gelen JSON satırlarını okur, ekranda gösterir;
- * dokunmatik arayüzden bilgisayara komut gönderir. Protokol v1.1: ../docs/02-mimari.md
+ * dokunmatik arayüzden bilgisayara komut gönderir. Protokol v1.5: ../docs/02-mimari.md
  * Arayüz (Faz 4): ui.cpp — Sistem · Medya · Kısayollar.
  *
  * Kart başlatma kodu ESP32_Display_Panel v1.0.4 "lvgl_v8_port" örneğinden alınmıştır (CC0-1.0).
@@ -21,12 +21,12 @@
 using namespace esp_panel::drivers;
 using namespace esp_panel::board;
 
-#define FW_VERSION "0.6.0"
+#define FW_VERSION "0.8.0"
 #define PROTO_VERSION 1
 #define LINK_BAUD 921600
 #define LINK_TIMEOUT_MS 3000
 #define HEARTBEAT_MS 1000
-#define LINE_MAX 2048
+#define LINK_LINE_MAX 4096  // v1.4: 12 kutuluk "tiles" mesajı ≈2 KB
 #define ART_W 240
 #define ART_H 240
 #define ART_BYTES (ART_W * ART_H * 2)
@@ -34,7 +34,7 @@ using namespace esp_panel::board;
 #define IDLE_DARK_MS 60000  // bu kadar süre bağlantı yoksa ekranı karart
 #define WAKE_MS 20000       // karanlıkken dokununca ekran bu kadar açık kalır
 
-static char line_buf[LINE_MAX];
+static char line_buf[LINK_LINE_MAX];
 static size_t line_len = 0;
 static bool line_overflow = false;
 static uint32_t last_rx_ms = 0;
@@ -52,6 +52,13 @@ static uint32_t art_deadline = 0;
 static Board *g_board = nullptr;
 static bool pc_locked = false;
 static bool pc_bye = false;
+static uint32_t locked_since = 0;
+
+// Faz 7: ayar dosyasından gelenler (cfg mesajı); bilgisayar söyleyene kadar eski davranış (kilitte karart)
+static bool lock_clock_on = false;
+static uint32_t lock_clock_ms = 10 * 60000UL;  // 0: kilit saati hiç kararmasın
+static uint32_t notif_ms = 6000;
+static bool warn_wake = false;  // yeni bir uyarı başladı: ekranı uyandır
 
 // UI'dan (LVGL görevi) ve loop()'tan çağrılabilir; tek printf çağrısı = tek yazma, satırlar karışmaz.
 void link_send_cmd(const char *cmd, int value, bool has_value)
@@ -84,14 +91,35 @@ static void handle_line(char *line, size_t len)
     lvgl_port_lock(-1);
     if (strcmp(t, "stat") == 0) {
         ui_update_stat(o);
-        pc_locked = (doc["locked"] | 0) != 0;
+        bool locked = (doc["locked"] | 0) != 0;
+        if (locked && !pc_locked) {
+            locked_since = millis();
+        }
+        pc_locked = locked;
         pc_bye = false;
+        if (ui_set_warn(doc["warn"] | "")) {
+            warn_wake = true;
+        }
     } else if (strcmp(t, "bye") == 0) {
         pc_bye = true;  // servis kapanıyor: ekranı hemen karart
     } else if (strcmp(t, "media") == 0) {
         ui_update_media(o);
     } else if (strcmp(t, "vol") == 0) {
         ui_update_vol(o);
+    } else if (strcmp(t, "tiles") == 0) {
+        ui_set_tiles(doc["items"].as<JsonArrayConst>());
+    } else if (strcmp(t, "cfg") == 0) {
+        lock_clock_on = (doc["lock_clock"] | 0) != 0;
+        lock_clock_ms = (doc["lock_min"] | 10UL) * 60000UL;
+        notif_ms = (doc["notif_s"] | 6UL) * 1000UL;
+    } else if (strcmp(t, "notif") == 0) {
+        ui_show_notif(doc["app"] | "", doc["ti"] | "", doc["bd"] | "", doc["lvl"] | "info", notif_ms);
+    } else if (strcmp(t, "cc") == 0) {
+        ui_update_cc(o);
+    } else if (strcmp(t, "gh") == 0) {
+        ui_update_gh(o);
+    } else if (strcmp(t, "srv") == 0) {
+        ui_update_srv(o);
     } else if (strcmp(t, "art") == 0) {
         size_t n = doc["n"] | 0;
         if (n == 0) {
@@ -149,7 +177,7 @@ static void poll_serial()
             line_len = 0;
             line_overflow = false;
         } else if (c != '\r') {
-            if (line_len < LINE_MAX - 1) {
+            if (line_len < LINK_LINE_MAX - 1) {
                 line_buf[line_len++] = static_cast<char>(c);
             } else {
                 line_overflow = true;  // çok uzun satır: sonuna kadar at
@@ -219,25 +247,41 @@ void loop()
         Serial.printf("{\"t\":\"hb\",\"up\":%lu,\"fw\":\"%s\"}\n", static_cast<unsigned long>(now / 1000), FW_VERSION);
     }
 
-    // Ekran karartma
-    static bool is_dark = false;
+    // Ekran durumu (bkz. docs/kararlar.md "Ekran karartma" ve "Kilit saati")
+    //   servis kapandı / bağlantı yok → karanlık
+    //   PC kilitli → kilit saati (ayarda açıksa, süresi dolana kadar) ya da karanlık
+    //   karanlıkta dokunma ya da yeni uyarı → WAKE_MS boyunca açık (kilitliyken saat, değilse panel)
+    enum Screen { SCR_PANEL, SCR_CLOCK, SCR_DARK };
+    static Screen screen = SCR_PANEL;
     static uint32_t wake_until = 0;
-    if (ui_take_wake_request()) {
+    bool woke = ui_take_wake_request();
+    if (woke || warn_wake) {
         wake_until = now + WAKE_MS;
+        warn_wake = false;
     }
+    bool awake = static_cast<int32_t>(now - wake_until) < 0;
     bool link_idle = last_rx_ms == 0 ? now > IDLE_DARK_MS : now - last_rx_ms > IDLE_DARK_MS;
-    bool want_dark = pc_locked || pc_bye || link_idle;
-    bool dark = want_dark && static_cast<int32_t>(now - wake_until) >= 0;
-    if (dark != is_dark) {
-        is_dark = dark;
+    Screen want = SCR_PANEL;
+    if (pc_bye || link_idle) {
+        want = awake ? SCR_PANEL : SCR_DARK;
+    } else if (pc_locked && lock_clock_on) {
+        bool expired = lock_clock_ms && now - locked_since > lock_clock_ms;
+        want = (!expired || awake) ? SCR_CLOCK : SCR_DARK;
+    } else if (pc_locked) {
+        want = awake ? SCR_PANEL : SCR_DARK;
+    }
+    if (want != screen) {
+        screen = want;
         lvgl_port_lock(-1);
-        ui_set_sleep(dark);
+        ui_set_lock_clock(want == SCR_CLOCK);
+        ui_set_sleep(want == SCR_DARK);
         lvgl_port_unlock();
         auto bl = g_board ? g_board->getBacklight() : nullptr;
         if (bl) {
-            dark ? bl->off() : bl->on();
+            want == SCR_DARK ? bl->off() : bl->on();
         }
-        Serial.printf("# ekran %s\n", dark ? "karartildi" : "acildi");
+        static const char *const NAMES[] = {"panel", "kilit saati", "karartildi"};
+        Serial.printf("# ekran: %s\n", NAMES[want]);
     }
 
     if (now - last_ui >= 250) {

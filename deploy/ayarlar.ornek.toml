@@ -1,0 +1,130 @@
+# PC Panel ayarları
+#
+# Yer: ~/.config/pc-panel/ayarlar.toml  (deploy/kur.sh, dosya yoksa bu örneği oraya kopyalar)
+# Dosyayı kaydedince servis birkaç saniye içinde değişikliği kendiliğinden uygular; yeniden başlatmak gerekmez.
+# Hatalı bir dosya kaydedilirse servis son geçerli ayarlarla devam eder ve hatayı günlüğe yazar:
+#   journalctl --user -u pc-panel -f
+
+[kilit_ekrani]
+saat = true      # PC kilitliyken büyük saat göster (false: ekran hemen kararır)
+sure_dk = 10     # saat bu kadar dakika sonra kararsın (0: hiç kararmasın). Karta dokununca 20 sn yeniden açılır.
+
+[bildirim]
+acik = true
+kilitliyken = false      # PC kilitliyken bildirimler karta gelmesin (başkası okumasın)
+sure_sn = 6              # kartta kaç saniye kalsın
+haric = ["Spotify"]      # bu uygulamaların bildirimleri gösterilmez (şarkı bilgisi zaten Medya sayfasında)
+
+[uyari]
+# Bu değerler aşılınca üst şeritte kırmızı uyarı çıkar (5 birim düşünce kaybolur). 0: kapalı.
+cpu_sicaklik = 90        # °C
+gpu_sicaklik = 85        # °C
+ram_yuzde = 95           # %
+disk_yuzde = 90          # % — disk bu doluluğu geçince bir kez bildirim gelir
+
+[claude]
+# Claude Code oturumları Geliştirici sayfasında; izin isteyince / işi bitince bildirim.
+# Hook'lar: deploy/claude_hooks.py kur   (kaldırmak için: deploy/claude_hooks.py kaldir)
+acik = true
+bildir_sure_sn = 20      # bundan kısa süren işler bitince bildirim gelmez
+
+[komut]
+# fish'te uzun süren komut bitince bildirim (deploy/pc-panel.fish → ~/.config/fish/conf.d/)
+acik = true
+sure_sn = 30
+# haric = ["nvim", "ssh", "claude"]   # yazılırsa varsayılan listenin yerine geçer (editörler, ssh, izleyiciler…)
+
+[github]
+# gh ile (gh auth login yeterli). Son Actions çalışmaları, inceleme bekleyen PR'lar, bildirimler.
+acik = true
+sure_sn = 120
+depolar = []             # boş: en son push yapılan 6 depo. Ör. ["hamer1818/TulparLang", "hamer1818/iurl"]
+
+[sunucular]
+sure_sn = 60             # denetim aralığı
+
+# Sunucu / site sağlığı, en çok 8. Art arda 2 denetimde yanıt yoksa uyarı + bildirim; SSL 7 günden azsa uyarı.
+#   adres = "https://…"      HTTP denetimi (500'den küçük her yanıt "ayakta"), gecikme, SSL kalan gün
+#   tcp   = "makine:port"    yalnızca bağlantı açılıyor mu (ör. SSH)
+# [[sunucu]]
+# ad = "site"
+# adres = "https://ornek.com"
+#
+# [[sunucu]]
+# ad = "sunucu SSH"
+# tcp = "203.0.113.10:22"
+
+# ---------------------------------------------------------------------------------------------------
+# Kısayollar: en çok 12 kutu, yazıldığı sırayla (8'e kadar 2 satır, daha fazlası 3 satır).
+#
+#   baslik    kutudaki ad (zorunlu)
+#   aciklama  altındaki küçük yazı
+#   ikon      lock mic camera volume terminal globe folder spotify code gamepad steam discord firefox chrome
+#             youtube github envelope calendar calculator cog power moon sync desktop download home bolt
+#             clipboard image video headphones star bell search keyboard file rocket tv wifi telegram
+#             whatsapp music play pause next prev
+#   id        (isteğe bağlı) kalıcı kimlik; yazılmazsa başlıktan üretilir
+#
+# Ne yapacağı (biri seçilir):
+#   uygulama = "org.kde.konsole"          masaüstü kimliğiyle aç / öne getir (kstart)
+#   komut    = ["spectacle", "-b", "-r"]  program çalıştır (kabuk YOK; her argüman ayrı)
+#   adres    = "https://github.com"       varsayılan tarayıcıda / programda aç (xdg-open)
+#   ozel     = "lock" | "mic" | "mute" | "screenshot"
+#   medya    = "play_pause" | "next" | "prev"
+#   makro    = [ {uygulama = "spotify"}, {bekle = 1.5}, {medya = "play_pause"} ]   adımları sırayla yapar
+#
+# ozel = "mic" ve "mute" kutuları açık/kapalı durumunu gösterir.
+# ---------------------------------------------------------------------------------------------------
+
+[[kisayol]]
+baslik = "Ekranı kilitle"
+aciklama = "KDE oturumu"
+ikon = "lock"
+ozel = "lock"
+
+[[kisayol]]
+baslik = "Mikrofon"
+ikon = "mic"
+ozel = "mic"
+
+[[kisayol]]
+baslik = "Ekran görüntüsü"
+aciklama = "Spectacle"
+ikon = "camera"
+ozel = "screenshot"
+
+[[kisayol]]
+baslik = "Sesi kapat"
+ikon = "volume"
+ozel = "mute"
+
+[[kisayol]]
+baslik = "Terminal"
+aciklama = "Konsole"
+ikon = "terminal"
+uygulama = "org.kde.konsole"
+
+[[kisayol]]
+baslik = "Tarayıcı"
+aciklama = "Zen"
+ikon = "globe"
+uygulama = "userapp-Zen-83YBT3"
+
+[[kisayol]]
+baslik = "Dosyalar"
+aciklama = "Dolphin"
+ikon = "folder"
+uygulama = "org.kde.dolphin"
+
+[[kisayol]]
+baslik = "Spotify"
+aciklama = "öne getir"
+ikon = "spotify"
+uygulama = "spotify"
+
+# Örnek makro (açmak için başlarındaki # işaretlerini silin):
+# [[kisayol]]
+# baslik = "Müzik başlat"
+# aciklama = "Spotify + çal"
+# ikon = "play"
+# makro = [ {uygulama = "spotify"}, {bekle = 2}, {medya = "play_pause"} ]

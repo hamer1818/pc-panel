@@ -19,7 +19,15 @@
 | `pc_panel/console.py` | Konsol modu görünümü |
 | `pc_panel/protocol.py` | Toplanan verileri protokol v1 mesajlarına (`stat`, `media`) çevirir |
 | `pc_panel/link.py` | `SerialLink` — seri port, okuma iş parçacığı, yeniden bağlanma |
-| `pc_panel/__main__.py` | Komut satırı (`pc-panel`); varsayılan mod servis: üretici + tüketici + bekçi görevleri |
+| `pc_panel/__main__.py` | Komut satırı (`pc-panel`); servis görevleri: üretici, tüketici, bekçi, bildirim izleyici, olay soketi, GitHub, sunucular |
+| `pc_panel/config.py` | **Faz 7:** `~/.config/pc-panel/ayarlar.toml` okuma, denetleme, değişince yeniden yükleme (`ConfigWatcher`) |
+| `pc_panel/shortcuts.py` | Kısayol adımlarını uygular (uygulama / komut / adres / özel / medya / bekle) |
+| `pc_panel/notify.py` | **Faz 7:** D-Bus izleyici bağlantısıyla `Notify` çağrılarını yakalar |
+| `pc_panel/olay.py` | **Faz 7B:** `pc-panel-olay` aracı (yalnız standart kütüphane) ve soket yolu |
+| `pc_panel/claude.py` | **Faz 7B:** Claude Code oturum durumları (hook olaylarından) |
+| `pc_panel/github.py` | **Faz 7B:** `gh api` ile Actions çalışmaları, PR ve bildirim sayıları, CI geçiş bildirimleri |
+| `pc_panel/servers.py` | **Faz 7B:** HTTP / TCP denetimi, SSL kalan gün, kapandı / düzeldi geçişleri |
+| `pc_panel/alerts.py` | **Faz 7:** sıcaklık / RAM uyarısı (eşik + 5 birim geri dönüş payı), disk doluluk bildirimi |
 
 ## Kart yazılımı (`firmware/src/`)
 | Dosya | Görev |
@@ -87,6 +95,50 @@ uv run pc-panel --konsol   # sadece terminalde göster
 - Yeni mesaj `{"t":"bye"}`: servis kapanırken (SIGTERM / Ctrl+C) gönderilir; kart ekranı hemen karartır.
 - Kart kuralları için bkz. `kararlar.md` "Ekran karartma kartta karar verilir".
 
+### Ayar dosyasından gelenler (v1.4 — Faz 7)
+Ayar dosyası: `~/.config/pc-panel/ayarlar.toml` (örnek ve açıklamalar `deploy/ayarlar.ornek.toml`). Servis dosyayı
+3 sn'de bir yoklar; değişince aşağıdaki mesajları yeniden gönderir. Kart yeniden başlayınca (`hello`) ya da bağlantı
+yeniden kurulunca da gönderilir. Denetlemek için: `uv run pc-panel --ayar-kontrol`.
+
+| Tip | Ne zaman | Alanlar |
+|-----|----------|---------|
+| `tiles` | bağlantı / ayar değişince | `items`: `[{"id":"terminal","ic":"terminal","ti":"Terminal","de":"Konsole","tg":"mic"?}]`, en çok 12. `ic` ikon adı (kartta `ICONS` tablosu), `tg` "mic"/"mute" durum gösteren kutu |
+| `cfg` | bağlantı / ayar değişince | `lock_clock` 0/1, `lock_min` dk (0: kararmaz), `notif_s` bildirim süresi sn |
+| `notif` | bildirim gelince | `app`, `ti` başlık, `bd` gövde (HTML'den arındırılmış), **v1.5:** `lvl` `info`/`ok`/`err`/`wait` |
+| `stat` | her 1 sn | yeni alan `warn`: etkin uyarılar ("CPU 92°C · RAM %96") ya da "" |
+
+Kart → bilgisayar: yeni komut `{"t":"cmd","c":"mute"}` (Medya sayfasındaki ses simgesi; kısayol listesinden bağımsız).
+Kısayol kutusu yine `{"c":"shortcut","id":…}` gönderir; bilgisayar kimliği **o anki** ayarlardaki listede arar.
+
+Kart ekran durumu (v1.4):
+| Durum | Ne zaman |
+|-------|----------|
+| panel | normal; ya da karanlıkta dokunma / yeni uyarı sonrası 20 sn |
+| kilit saati | PC kilitli ve `lock_clock`=1, kilitlendikten sonra `lock_min` dakika boyunca (dokununca 20 sn daha) |
+| karanlık | `bye`, 60 sn bağlantı yok, ya da kilitli ve (kilit saati kapalı ya da süresi doldu) |
+
+Bildirimler kilitliyken varsayılan olarak gönderilmez (`[bildirim] kilitliyken = false`). Aynı bildirim 3 sn içinde
+tekrar gelirse yok sayılır. Disk doluluk uyarısı bir `notif` mesajı olarak gider.
+
+### Geliştirici sayfası (v1.5 — Faz 7B)
+| Tip | Ne zaman | Alanlar |
+|-----|----------|---------|
+| `cc` | Claude olayı gelince + 10 sn'de bir | `items` `[{"p":"TulparLang","s":"wait","m":"izin bekliyor","age":12}]` (en çok 5; `s`: `work`/`wait`/`done`/`idle`), `wait` ve `work` sayıları |
+| `gh` | `[github] sure_sn` (120 sn) | `ok` 1: `runs` `[{"r":"iurl","w":"Deploy API","s":"fail","b":"main","age":429949}]` (en çok 4; `s`: `ok`/`fail`/`run`/`wait`/`cancel`), `rev` inceleme bekleyen PR, `prs` açık PR'larım, `ntf` okunmamış bildirim · `ok` 0: `err` |
+| `srv` | `[sunucular] sure_sn` (60 sn) | `items` `[{"n":"iurl.tr","ok":1,"ms":240,"ssl":61}]` (en çok 8; `ok` 1 ayakta, 0 kapalı, -1 tek başarısızlık) |
+
+Sunucu "kapalı" ve SSL < 7 gün uyarıları `stat.warn` alanına eklenir (üst şeritte kırmızı).
+
+#### Olay soketi (dışarıdan servise)
+`$XDG_RUNTIME_DIR/pc-panel.sock` (Unix akış soketi, 0600). Her bağlantı tek satır JSON gönderir ve kapanır.
+Gönderici: `host/.venv/bin/pc-panel-olay`.
+
+| `k` | Kaynak | Alanlar |
+|-----|--------|---------|
+| `claude` | Claude Code hook'ları (`~/.claude/settings.json`: SessionStart, UserPromptSubmit, PostToolUse, Notification, Stop, SessionEnd) | `ev` olay adı, `sid`, `cwd`, `msg`, `ntype` (istem metni ve araç girdileri gönderilmez) |
+| `cmd` | fish `fish_postexec` (≥ 5 sn süren komutlar; eşik ve hariç liste serviste) | `cmd`, `ms`, `code` |
+| `notif` | `pc-panel-olay bildir "Başlık" "Gövde"` | `title`, `body` |
+
 ## Kurulum (Faz 6)
 - `deploy/pc-panel.service` → `~/.config/systemd/user/`, `deploy/kur.sh` ile kurulur (`kur.sh kaldir` ile kaldırılır).
 - Servis `host/.venv/bin/pc-panel`'i doğrudan çalıştırır (uv gerekmez).
@@ -114,6 +166,6 @@ Kurallar:
   tarayıcıların geçici kapakları). Resim ortadan kare kırpılıp 240×240'a küçültülür.
 
 ### Kısayollar güvenliği
-Kart yalnızca bir **kısayol kimliği** (`id`) gönderir. Bilgisayar bu kimliği `pc_panel/shortcuts.py` içindeki sabit
-bir listeyle eşleştirir ve oradaki komutu çalıştırır. Karttan komut satırı ya da serbest metin çalıştırılamaz;
+Kart yalnızca bir **kısayol kimliği** (`id`) gönderir. Bilgisayar bu kimliği ayar dosyasındaki listeyle eşleştirir
+ve oradaki adımları uygular; komutlar kabuk olmadan, argüman listesiyle çalıştırılır. Karttan komut satırı ya da serbest metin çalıştırılamaz;
 listede olmayan bir kimlik yok sayılır.
