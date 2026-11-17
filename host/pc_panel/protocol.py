@@ -126,6 +126,14 @@ def gh_message(data: dict | None, error: str = "") -> dict:
             "ntf": data["notifications"]}
 
 
+def apps_message(apps) -> dict:
+    """Uygulamalar sayfası: sırayla id + ad; ikonlar ardından `icon` ikili blokları olarak (i = sıra)."""
+    return {"t": "apps", "items": [{"id": a.id[:40], "ti": a.title[:TITLE_LEN]} for a in apps]}
+
+
+TITLE_LEN = 24
+
+
 def cu_message(accounts: list[dict]) -> dict:
     """Claude kullanımı (hesap başına): n ad, txt token ("1,2 M"), pct en yoğun pencereye göre %, rst sıfırlanmaya sn
     (-1: etkin pencere yok)."""

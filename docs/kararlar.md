@@ -2,6 +2,20 @@
 
 Her karar: tarih · karar · düşünülen seçenekler · neden.
 
+## 2026-11-17 · Faz 7E: uygulamalar ayrı sayfada, gerçek ikonlarla
+- İstek: Steam, Epic Games, Antigravity, VS Code, Zen, Discord, Spotify, RustDesk, AnyDesk, Thunderbird için hızlı başlatma.
+- Seçenekler: mevcut Kısayollar sayfasına eklemek (12 kutu sınırı, 8'i dolu; Font Awesome'da Epic, Antigravity,
+  RustDesk, AnyDesk, Thunderbird yok) · ayrı sayfa + gerçek ikonlar.
+- Neden ayrı sayfa: 10 uygulama + mevcut 8 kısayol tek sayfaya sığmıyor; gerçek ikonlar kutuları bir bakışta
+  tanınır yapıyor. İkonlar kartta saklanmıyor, her bağlantıda bilgisayardan gönderiliyor (≈1,5 sn); yazı tipine
+  derlenseydi her yeni uygulama için kart yazılımı yeniden yüklenmeliydi.
+- Uygulama ayar dosyasında yalnızca `.desktop` kimliğiyle yazılıyor; ad ve ikon oradan geliyor, ad isteğe göre kısaltılabiliyor.
+
+## 2026-11-17 · Karttan Claude izin onayı YAPILMAYACAK
+- Önerilmişti: Claude izin isteyince kartta komut + Onayla / Reddet (PermissionRequest hook'u ile).
+- Kullanıcı kararı: yapılmayacak. Kart yalnızca haber verir; izinler her zaman bilgisayardan verilir.
+  Tekrar önerilmesin.
+
 ## 2026-11-17 · Faz 7D: yalnızca günlük kullanılacak iki ek; paneli büyütmeme kuralı
 - Kullanıcı uzun özellik listesini istemedi: "günlük olarak kullanabileceğim özellikler". Seçilen: Claude kullanım
   göstergesi ve push edilmemiş iş satırı. Diğer fikirler 7C'de bekliyor; önce bir hafta kullanılıp bakılmayan

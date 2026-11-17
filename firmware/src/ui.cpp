@@ -9,6 +9,7 @@
 #include "ui.h"
 
 #include <Arduino.h>
+#include <esp_heap_caps.h>
 #include <lvgl.h>
 
 #include "ui_fonts.h"
@@ -33,7 +34,7 @@ constexpr int PAGE_H = 440;
 
 // ---- Nesneler ----
 lv_obj_t *lbl_clock, *lbl_date, *lbl_page, *link_dot, *link_lbl;
-constexpr int PAGES = 4;
+constexpr int PAGES = 5;
 lv_obj_t *tileview, *page_dots[PAGES];
 lv_obj_t *toast;
 lv_timer_t *toast_timer;
@@ -139,7 +140,7 @@ const char *glyph_by_name(const NamedGlyph *table, size_t n, const char *name, c
 }
 #define ICON(name) glyph_by_name(ICONS, sizeof(ICONS) / sizeof(ICONS[0]), (name), LV_SYMBOL_DUMMY "?")
 
-const char *const PAGE_NAMES[PAGES] = {"SİSTEM", "MEDYA", "KISAYOLLAR", "GELİŞTİRİCİ"};
+const char *const PAGE_NAMES[PAGES] = {"SİSTEM", "MEDYA", "UYGULAMALAR", "KISAYOLLAR", "GELİŞTİRİCİ"};
 
 // ---- Yardımcılar ----
 
@@ -784,6 +785,73 @@ void build_lock_screen()
 
 
 // =====================================================================================
+// Uygulamalar (Faz 7E): 5×3 ızgara, gerçek uygulama ikonları bilgisayardan (64×64 RGB565 + alfa)
+// =====================================================================================
+constexpr int MAX_APPS = 15, APP_ICON_PX = 64, APP_ICON_BYTES = APP_ICON_PX * APP_ICON_PX * 3;
+struct AppTile {
+    char id[44], title[64];
+    lv_obj_t *obj, *img, *letter;
+    uint8_t *px;  // PSRAM, ilk ikonda ayrılır ve saklanır
+    lv_img_dsc_t dsc;
+};
+AppTile apps[MAX_APPS];
+int app_count = 0;
+lv_obj_t *apps_page, *apps_empty;
+
+void app_click_cb(lv_event_t *e)
+{
+    AppTile *a = static_cast<AppTile *>(lv_event_get_user_data(e));
+    link_send_app(a->id);
+    char msg[96];
+    snprintf(msg, sizeof(msg), "%s açılıyor…", a->title);
+    show_toast(msg);
+}
+
+void build_apps()
+{
+    lv_obj_clean(apps_page);
+    const int w = 148, h = 128, gx = 8, gy = 8;
+    for (int i = 0; i < app_count; i++) {
+        AppTile &a = apps[i];
+        a.obj = lv_obj_create(apps_page);
+        lv_obj_remove_style_all(a.obj);
+        lv_obj_set_pos(a.obj, 14 + (i % 5) * (w + gx), 4 + (i / 5) * (h + gy));
+        lv_obj_set_size(a.obj, w, h);
+        lv_obj_set_style_bg_color(a.obj, C_CARD, 0);
+        lv_obj_set_style_bg_color(a.obj, C_CARD2, LV_STATE_PRESSED);
+        lv_obj_set_style_bg_opa(a.obj, LV_OPA_COVER, 0);
+        lv_obj_set_style_radius(a.obj, 14, 0);
+        lv_obj_clear_flag(a.obj, LV_OBJ_FLAG_SCROLLABLE);
+        lv_obj_add_event_cb(a.obj, app_click_cb, LV_EVENT_CLICKED, &a);
+
+        // İkon gelene kadar adın baş harfi
+        a.letter = label(a.obj, F30, C_MUTED, "");
+        char first[5] = {0};
+        const unsigned char c0 = static_cast<unsigned char>(a.title[0]);
+        size_t len = c0 < 0x80 ? 1 : c0 < 0xE0 ? 2 : c0 < 0xF0 ? 3 : 4;
+        memcpy(first, a.title, len < sizeof(first) ? len : sizeof(first) - 1);
+        set_text(a.letter, first);
+        lv_obj_align(a.letter, LV_ALIGN_CENTER, 0, -14);
+        a.img = lv_img_create(a.obj);
+        lv_obj_align(a.img, LV_ALIGN_CENTER, 0, -14);
+        lv_obj_add_flag(a.img, LV_OBJ_FLAG_HIDDEN);
+
+        lv_obj_t *t = label(a.obj, F14, C_TEXT);
+        set_text(t, a.title);
+        lv_obj_set_width(t, w - 12);
+        lv_obj_set_style_text_align(t, LV_TEXT_ALIGN_CENTER, 0);
+        lv_label_set_long_mode(t, LV_LABEL_LONG_DOT);
+        lv_obj_align(t, LV_ALIGN_BOTTOM_MID, 0, -12);
+    }
+    apps_empty = label(apps_page, F16, C_FAINT);
+    set_text(apps_empty, "Ayar dosyasında [uygulamalar] listesi yok");
+    lv_obj_align(apps_empty, LV_ALIGN_CENTER, 0, -20);
+    if (app_count) {
+        lv_obj_add_flag(apps_empty, LV_OBJ_FLAG_HIDDEN);
+    }
+}
+
+// =====================================================================================
 // 4) Geliştirici (Faz 7B): Claude Code oturumları · GitHub Actions · sunucular
 // =====================================================================================
 constexpr int CC_ROWS = 4, GH_ROWS = 4, SRV_MAX = 8, CU_MAX = 2;
@@ -988,13 +1056,16 @@ void ui_create()
     lv_obj_t *t0 = lv_tileview_add_tile(tileview, 0, 0, LV_DIR_RIGHT);
     lv_obj_t *t1 = lv_tileview_add_tile(tileview, 1, 0, LV_DIR_LEFT | LV_DIR_RIGHT);
     lv_obj_t *t2 = lv_tileview_add_tile(tileview, 2, 0, LV_DIR_LEFT | LV_DIR_RIGHT);
-    lv_obj_t *t3 = lv_tileview_add_tile(tileview, 3, 0, LV_DIR_LEFT);
+    lv_obj_t *t3 = lv_tileview_add_tile(tileview, 3, 0, LV_DIR_LEFT | LV_DIR_RIGHT);
+    lv_obj_t *t4 = lv_tileview_add_tile(tileview, 4, 0, LV_DIR_LEFT);
     build_system(t0);
     build_media(t1);
-    shortcut_page = t2;
+    apps_page = t2;
+    build_apps();
+    shortcut_page = t3;
     load_default_tiles();
-    build_shortcuts(t2);
-    build_dev(t3);
+    build_shortcuts(t3);
+    build_dev(t4);
 
     // Sayfa noktaları
     for (int i = 0; i < PAGES; i++) {
@@ -1509,6 +1580,51 @@ void ui_update_git(JsonObjectConst o)
 {
     set_text(git_line, o["txt"] | "");
     lv_obj_set_style_text_color(git_line, (o["n"] | 0) ? C_WARN : C_FAINT, 0);
+}
+
+void ui_set_apps(JsonArrayConst items)
+{
+    int n = 0;
+    for (JsonObjectConst it : items) {
+        if (n >= MAX_APPS) {
+            break;
+        }
+        const char *id = it["id"] | "";
+        if (!id[0]) {
+            continue;
+        }
+        strlcpy(apps[n].id, id, sizeof(apps[n].id));
+        strlcpy(apps[n].title, it["ti"] | id, sizeof(apps[n].title));
+        n++;
+    }
+    app_count = n;
+    build_apps();  // ikonlar ardından `icon` bloklarıyla gelir
+}
+
+void ui_set_app_icon(int index, const uint8_t *data, int w, int h)
+{
+    if (index < 0 || index >= app_count || w != APP_ICON_PX || h != APP_ICON_PX) {
+        return;
+    }
+    AppTile &a = apps[index];
+    if (!a.px) {
+        a.px = static_cast<uint8_t *>(heap_caps_malloc(APP_ICON_BYTES, MALLOC_CAP_SPIRAM));
+        if (!a.px) {
+            return;
+        }
+    }
+    memcpy(a.px, data, APP_ICON_BYTES);
+    a.dsc.header.always_zero = 0;
+    a.dsc.header.cf = LV_IMG_CF_TRUE_COLOR_ALPHA;
+    a.dsc.header.w = w;
+    a.dsc.header.h = h;
+    a.dsc.data_size = APP_ICON_BYTES;
+    a.dsc.data = a.px;
+    lv_img_cache_invalidate_src(&a.dsc);
+    lv_img_set_src(a.img, &a.dsc);
+    lv_obj_clear_flag(a.img, LV_OBJ_FLAG_HIDDEN);
+    lv_obj_add_flag(a.letter, LV_OBJ_FLAG_HIDDEN);
+    lv_obj_invalidate(a.img);
 }
 
 void ui_set_lock_clock(bool on)

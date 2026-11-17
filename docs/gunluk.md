@@ -2,6 +2,23 @@
 
 En yeni kayıt en üstte.
 
+## 2026-11-17 — Faz 7E: hızlı uygulama başlatma (kart 0.10.0)
+- İstek: Steam, Epic Games, Antigravity, VS Code, Zen, Discord, Spotify, RustDesk, AnyDesk, Thunderbird.
+- Yoklama: hepsinin `.desktop` dosyası var (Epic: `~/.local/share/applications/epic-games-launcher.desktop`,
+  VS Code: `com.microsoft.VSCode`, Zen: `zen`, Thunderbird: `org.mozilla.Thunderbird`). İkonlar hicolor / pixmaps'te,
+  AnyDesk SVG (`rsvg-convert` var).
+- `apps.py`: `.desktop` → ad + ikon, ikon teması zinciri, 64×64 RGB565+alfa; `--ayar-kontrol` uygulamaları ve ikon
+  yollarını listeliyor. 10 ikonun önizlemesi çizilip gözle kontrol edildi (hepsi doğru).
+- Kart 0.10.0: 5. sayfa düzeni Sistem · Medya · Uygulamalar · Kısayollar · Geliştirici. İkili alım kapak + ikon için
+  ortaklaştırıldı. RAM %9,6, flash %16,6, uyarısız.
+- Deneme (`--debug`): `apps` gitti, 10 ikonun hepsi "alındı" (≈1,5 sn). Uygulamaları açma denenmedi (masaüstünde
+  pencere açmamak için); başlatma `kstart --application` ile, Kısayollar'daki gibi.
+- Kullanıcının ayar dosyasına `[uygulamalar]` listesi kısa adlarla eklendi.
+
+## 2026-11-17 — Sonraki adım: yeni özellik yok, bir hafta kullanım
+- Kullanıcıya ölçüsüne göre ("günlük kullanılacak şeyler") tek aday sunuldu: karttan Claude izin onayı.
+  Kullanıcı reddetti → `kararlar.md`'ye yazıldı. Yeni özellik eklenmiyor; bir hafta kullanıp bakılmayanlar kaldırılacak.
+
 ## 2026-11-17 — Faz 7D: Claude kullanım göstergesi ve push edilmemiş iş (kart 0.9.0)
 - Kullanıcı yeni fikir listesini fazla buldu; günlük kullanacağı iki özellik seçildi.
 - `usage.py`: iki hesabın kayıtları (8 günde 600 MB + 150 MB) → konum saklayarak artımlı okuma, (mesaj, istek)

@@ -28,8 +28,12 @@ void ui_update_gh(JsonObjectConst o);   // GitHub Actions, PR, bildirim
 void ui_update_srv(JsonObjectConst o);  // sunucu sağlığı
 void ui_update_cu(JsonObjectConst o);   // Claude kullanımı (hesap başına 5 sa penceresi)
 void ui_update_git(JsonObjectConst o);  // push / commit edilmemiş iş
+// Faz 7E (protokol v1.7): Uygulamalar sayfası
+void ui_set_apps(JsonArrayConst items);  // [{"id","ti"}], en çok 15; ikonlar sonra gelir
+void ui_set_app_icon(int index, const uint8_t *rgb565a8, int w, int h);  // veriyi kopyalar
 void ui_set_lock_clock(bool on);          // PC kilitliyken büyük saat ekranı
 
 // main.cpp'de tanımlı: karttan bilgisayara komut gönderir
 void link_send_cmd(const char *cmd, int value, bool has_value);
 void link_send_shortcut(const char *id);
+void link_send_app(const char *id);

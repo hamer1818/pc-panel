@@ -20,7 +20,7 @@ import signal
 import sys
 import time
 
-from . import art, audio, shortcuts
+from . import apps as appmod, art, audio, shortcuts
 from .alerts import AlertTracker
 from .config import CONFIG_PATH, ConfigWatcher
 from .console import render
@@ -32,7 +32,7 @@ from .claude import ClaudeTracker, fmt_dur
 from .github import GhError, GitHubWatcher
 from .gitwatch import scan as git_scan, summary_text as git_summary
 from .olay import SOCK_PATH
-from .protocol import (cc_message, cfg_message, cu_message, gh_message, git_message, media_message, notif_message,
+from .protocol import (apps_message, cc_message, cfg_message, cu_message, gh_message, git_message, media_message, notif_message,
                        srv_message, stat_message, tiles_message, vol_message)
 from .servers import ServerWatcher
 from .system import SystemCollector
@@ -73,6 +73,39 @@ async def serve(args: argparse.Namespace, media: MediaWatcher) -> int:
     ui_state = {"sent": None, "locked": False}
     dev = {"gh": gh_message(None, "yükleniyor"), "srv": None, "cu": None, "git": None, "wake": asyncio.Event()}
     claude = ClaudeTracker()
+    # Uygulamalar: ayar değişince arka planda çözülür (ad + ikon); hazır olunca karta gönderilir
+    apps_state = {"version": -1, "apps": [], "icons": [], "sent": None, "task": None}
+
+    async def load_apps(version: int, wanted: list[tuple[str, str]]) -> None:
+        def work():
+            found, icons = [], []
+            for app_id, title in wanted:
+                a = appmod.resolve(app_id, title)
+                if a is None:
+                    log(f"uygulama bulunamadı: {app_id} (.desktop dosyası yok)")
+                    continue
+                found.append(a)
+                icons.append(appmod.icon_bytes(a))
+            return found, icons
+        found, icons = await asyncio.to_thread(work)
+        if config.version == version:
+            apps_state.update(version=version, apps=found, icons=icons, sent=None)
+            log(f"uygulamalar hazır: {len(found)} ({sum(1 for i in icons if i)} ikon)")
+
+    def maybe_send_apps() -> None:
+        if apps_state["version"] != config.version:
+            task = apps_state["task"]
+            if task is None or task.done():
+                apps_state["task"] = asyncio.create_task(load_apps(config.version, list(config.settings.apps)))
+            return
+        key = (apps_state["version"], link.generation)
+        if key == apps_state["sent"] or not link.connected:
+            return
+        send(apps_message(apps_state["apps"]))
+        for i, data in enumerate(apps_state["icons"]):
+            if data:
+                link.send(appmod.icon_header(i, data), data)  # ikili blok: debug'da yazdırılmaz
+        apps_state["sent"] = key
     servers = ServerWatcher()
 
     def maybe_send_settings() -> None:
@@ -284,6 +317,7 @@ async def serve(args: argparse.Namespace, media: MediaWatcher) -> int:
                     send(cc_message(claude.items()))
             if link.connected:
                 maybe_send_settings()
+                maybe_send_apps()
                 sysd, gpud = system.sample(), gpu.sample()
                 msg = stat_message(sysd, gpud)
                 locked = bool(await media.screen_locked())
@@ -320,6 +354,12 @@ async def serve(args: argparse.Namespace, media: MediaWatcher) -> int:
                 log(f"kart: merhaba (yazılım {msg.get('fw')}, protokol {msg.get('proto')})")
                 art_state["sent"] = None  # kart yeniden başladı: kapağı ve ayarları yeniden gönder
                 ui_state["sent"] = None
+                apps_state["sent"] = None
+            elif kind == "icon":
+                if not msg.get("ok"):
+                    log(f"kart: ikon {msg.get('i')} alınamadı")
+                elif args.debug:
+                    log(f"kart: ikon {msg.get('i')} alındı")
             elif kind == "art":
                 if msg.get("ok"):
                     if args.debug:
@@ -343,6 +383,9 @@ async def serve(args: argparse.Namespace, media: MediaWatcher) -> int:
                     ok = await audio.set_volume(float(val))
                     log(f"karttan komut: ses %{val:.0f} → {'tamam' if ok else 'başarısız'}")
                     await send_vol()
+                elif cmd == "app" and (app := next((a for a in apps_state["apps"] if a.id == msg.get("id")), None)):
+                    ok = await asyncio.to_thread(appmod.launch, app)
+                    log(f"karttan uygulama: {app.title} → {'tamam' if ok else 'başarısız'}")
                 elif cmd == "mute":  # Medya sayfasındaki ses simgesi
                     ok = await audio.toggle_mute()
                     log(f"karttan komut: sessiz → {'tamam' if ok else 'başarısız'}")
@@ -431,6 +474,11 @@ def check_config() -> int:
           + (", ".join(f"{x.name}={x.url or ':'.join(map(str, x.tcp))}" for x in s.servers) or "-"))
     print(f"Bildirimler: {'açık' if s.notif_on else 'kapalı'}, hariç: {', '.join(sorted(s.notif_exclude)) or '-'}")
     print(f"Uyarı eşikleri: CPU {s.warn_cpu}°C, GPU {s.warn_gpu}°C, RAM %{s.warn_ram}, disk %{s.warn_disk}")
+    print(f"Uygulamalar ({len(s.apps)}):")
+    for app_id, title in s.apps:
+        a = appmod.resolve(app_id, title)
+        icon = appmod.find_icon(a.icon_name) if a else None
+        print(f"  [{app_id}] {a.title if a else 'BULUNAMADI'} · ikon: {icon or 'yok'}")
     print(f"Kısayollar ({len(s.shortcuts)}):")
     for sc in s.shortcuts:
         steps = " → ".join(f"{st.kind}={st.value}" for st in sc.steps)

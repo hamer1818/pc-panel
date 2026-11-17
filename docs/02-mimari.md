@@ -24,6 +24,7 @@
 | `pc_panel/shortcuts.py` | Kısayol adımlarını uygular (uygulama / komut / adres / özel / medya / bekle) |
 | `pc_panel/notify.py` | **Faz 7:** D-Bus izleyici bağlantısıyla `Notify` çağrılarını yakalar |
 | `pc_panel/olay.py` | **Faz 7B:** `pc-panel-olay` aracı (yalnız standart kütüphane) ve soket yolu |
+| `pc_panel/apps.py` | **Faz 7E:** uygulama adı/ikonu bulma, ikonu 64×64 RGB565+alfa'ya çevirme, `kstart` ile başlatma |
 | `pc_panel/claude.py` | **Faz 7B:** Claude Code oturum durumları (hook olaylarından) |
 | `pc_panel/github.py` | **Faz 7B:** `gh api` ile Actions çalışmaları, PR ve bildirim sayıları, CI geçiş bildirimleri |
 | `pc_panel/servers.py` | **Faz 7B:** HTTP / TCP denetimi, SSL kalan gün, kapandı / düzeldi geçişleri |
@@ -132,6 +133,17 @@ tekrar gelirse yok sayılır. Disk doluluk uyarısı bir `notif` mesajı olarak 
 |-----|----------|---------|
 | `cu` | 60 sn'de bir | `acc` `[{"n":"hesap1","txt":"83 K","pct":5,"rst":13978}]` — 5 sa penceresindeki token (girdi + çıktı + önbelleğe yazma), `pct` son 7 günün en yoğun penceresine göre, `rst` sıfırlanmaya sn (-1: pencere yok) |
 | `git` | 5 dk'da bir | `txt` hazır satır ("Push bekliyor: tulpar-engine (4) · commit edilmemiş: …"), `n` dikkat isteyen depo sayısı |
+
+**v1.7 (Faz 7E) — Uygulamalar sayfası:**
+| Tip | Yön | Alanlar |
+|-----|-----|---------|
+| `apps` | PC → kart, bağlantı / ayar değişince | `items` `[{"id":"steam","ti":"Steam"}]`, en çok 15 |
+| `icon` | PC → kart, `apps`'ın hemen ardından | başlık `{"t":"icon","i":0,"w":64,"h":64,"n":12288,"crc":…}` + 12 288 bayt ikili veri: 64×64 `LV_IMG_CF_TRUE_COLOR_ALPHA` (RGB565 küçük uçlu + alfa, 3 bayt/piksel). Kart yanıtı `{"t":"icon","i":0,"ok":1}` |
+| `cmd` `app` | kart → PC | `{"t":"cmd","c":"app","id":"steam"}`; PC kimliği listede arar, `kstart --application <id>` |
+
+İkili alım kapak resmiyle ortak (aynı zaman aşımı ve CRC); ikon ortak bir PSRAM tamponuna alınır, CRC tutunca
+kutunun kendi tamponuna kopyalanır. 10 ikon ≈ 120 KB, ≈ 1,5 sn. Kaynak: `apps.py` (`.desktop` → `Icon=` →
+ikon teması + hicolor + pixmaps; SVG için `rsvg-convert`).
 
 Kaynaklar: `usage.py` (`~/.claude*/projects/**/*.jsonl`, yalnızca eklenen satırlar okunur, içerik okunmaz),
 `gitwatch.py` (`[git] klasorler` altındaki depolar, `git --no-optional-locks`).

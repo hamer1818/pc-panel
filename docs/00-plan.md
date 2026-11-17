@@ -185,6 +185,13 @@ Kullanıcı "800 özellik değil, her gün kullanacağım şeyler" dedi; yalnız
 - [x] **[CLAUDE]** Push / commit edilmemiş iş satırı (Geliştirici → GitHub kutusunun altı), son 7 günde dokunulan depolar.
 - [ ] **[SEN]** Bir hafta kullan; hiç bakmadığın özellik varsa söyle, kaldıralım.
 
+### 7E — Hızlı uygulama başlatma (kart 0.10.0, protokol v1.7)
+- [x] **[CLAUDE]** Yeni "Uygulamalar" sayfası (Medya ile Kısayollar arası), 5×3 = en çok 15 uygulama, gerçek ikonlar
+      (`.desktop` + ikon teması → 64×64 RGB565+alfa). Liste: Steam, Epic Games, Antigravity, VS Code, Zen, Discord,
+      Spotify, RustDesk, AnyDesk, Thunderbird (`[uygulamalar] liste`).
+- [ ] **[SEN]** Uygulamalar sayfasında ikonlar düzgün mü, dokununca uygulama açılıyor / öne geliyor mu?
+      (İstersen Kısayollar'daki Tarayıcı ve Spotify kutularını ayar dosyasından sil: artık Uygulamalar'da var.)
+
 ### 7C — Sonra (karar verilecek)
 - [ ] Görev çalıştırıcı kutular (çalışıyor → ✓/✗ ve süre, tehlikeli işlerde onay)
 - [ ] Geliştirme ortamı sayfası: dinlenen localhost portları, docker konteynerleri, adb / tailscale cihazları
@@ -206,4 +213,4 @@ Kullanıcı "800 özellik değil, her gün kullanacağım şeyler" dedi; yalnız
 | 4 Arayüz | ✅ bitti (2026-11-17) |
 | 5 Medya | ✅ bitti (2026-11-17); karttan çalar seçimi isteğe bağlı, yapılmadı |
 | 6 Kalıcı kurulum | ✅ bitti (2026-11-17) |
-| 7 Ekstralar | 7A + 7B + 7D kodlandı, kart 0.9.0 (2026-11-17) — bir haftalık kullanım; 7C sonra |
+| 7 Ekstralar | 7A + 7B + 7D + 7E kodlandı, kart 0.10.0 (2026-11-17) — bir haftalık kullanım; 7C sonra |

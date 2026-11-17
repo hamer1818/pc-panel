@@ -2,7 +2,7 @@
  * PC Panel — kart yazılımı
  *
  * Bilgisayardan seri port (CH343, 921600 baud) ile gelen JSON satırlarını okur, ekranda gösterir;
- * dokunmatik arayüzden bilgisayara komut gönderir. Protokol v1.6: ../docs/02-mimari.md
+ * dokunmatik arayüzden bilgisayara komut gönderir. Protokol v1.7: ../docs/02-mimari.md
  * Arayüz (Faz 4): ui.cpp — Sistem · Medya · Kısayollar.
  *
  * Kart başlatma kodu ESP32_Display_Panel v1.0.4 "lvgl_v8_port" örneğinden alınmıştır (CC0-1.0).
@@ -21,7 +21,7 @@
 using namespace esp_panel::drivers;
 using namespace esp_panel::board;
 
-#define FW_VERSION "0.9.0"
+#define FW_VERSION "0.10.0"
 #define PROTO_VERSION 1
 #define LINK_BAUD 921600
 #define LINK_TIMEOUT_MS 3000
@@ -30,7 +30,10 @@ using namespace esp_panel::board;
 #define ART_W 240
 #define ART_H 240
 #define ART_BYTES (ART_W * ART_H * 2)
-#define ART_TIMEOUT_MS 2000
+#define ART_TIMEOUT_MS 2000  // ikili blok hareketsizlik zaman aşımı (kapak ve ikonlar)
+#define ICON_PX 64
+#define ICON_BYTES (ICON_PX * ICON_PX * 3)  // LV_IMG_CF_TRUE_COLOR_ALPHA: RGB565 + alfa
+#define MAX_APPS 15
 #define IDLE_DARK_MS 60000  // bu kadar süre bağlantı yoksa ekranı karart
 #define WAKE_MS 20000       // karanlıkken dokununca ekran bu kadar açık kalır
 
@@ -40,9 +43,15 @@ static bool line_overflow = false;
 static uint32_t last_rx_ms = 0;
 static uint32_t rx_count = 0;
 
-// Kapak resmi: biri alınırken öteki gösterilen iki PSRAM tamponu (bkz. docs/02-mimari.md "Kapak resmi")
-static uint8_t *art_rx = nullptr;     // alınmakta olan
-static uint8_t *art_show = nullptr;   // ekranda gösterilen
+// İkili bloklar (kapak resmi, uygulama ikonları): bkz. docs/02-mimari.md "Kapak resmi"
+// Kapak: biri alınırken öteki gösterilen iki PSRAM tamponu. İkon: ortak alım tamponu, CRC tutunca ui kopyalar.
+static uint8_t *art_rx = nullptr;     // alınmakta olan kapak
+static uint8_t *art_show = nullptr;   // ekranda gösterilen kapak
+static uint8_t *icon_rx = nullptr;    // alınmakta olan ikon
+enum BinKind { BIN_ART, BIN_ICON };
+static BinKind bin_kind = BIN_ART;
+static int bin_index = 0;             // ikon sırası
+static uint8_t *bin_dst = nullptr;
 static size_t art_need = 0;           // >0 ise ikili alım modundayız
 static size_t art_got = 0;
 static uint32_t art_crc = 0;
@@ -76,6 +85,12 @@ void link_send_shortcut(const char *id)
     Serial.printf("{\"t\":\"cmd\",\"c\":\"shortcut\",\"id\":\"%s\"}\n", id);
 }
 
+// Uygulama kimliği bilgisayardan gelen listeden ([\w.+-]); bilgisayar yine listesinde arar
+void link_send_app(const char *id)
+{
+    Serial.printf("{\"t\":\"cmd\",\"c\":\"app\",\"id\":\"%s\"}\n", id);
+}
+
 static void handle_line(char *line, size_t len)
 {
     if (line[0] != '{') {
@@ -106,6 +121,23 @@ static void handle_line(char *line, size_t len)
         ui_update_media(o);
     } else if (strcmp(t, "vol") == 0) {
         ui_update_vol(o);
+    } else if (strcmp(t, "icon") == 0) {
+        size_t n = doc["n"] | 0;
+        int i = doc["i"] | -1;
+        if (n == ICON_BYTES && (doc["w"] | 0) == ICON_PX && i >= 0 && i < MAX_APPS && icon_rx) {
+            bin_kind = BIN_ICON;
+            bin_index = i;
+            bin_dst = icon_rx;
+            art_need = n;
+            art_got = 0;
+            art_crc = doc["crc"] | 0UL;
+            art_deadline = millis() + ART_TIMEOUT_MS;
+        } else {
+            Serial.printf("{\"t\":\"icon\",\"i\":%d,\"ok\":0}\n", i);
+            // Beklenmeyen boyut: ardından gelecek n bayt satır gibi okunur, JSON olmadığı için atılır
+        }
+    } else if (strcmp(t, "apps") == 0) {
+        ui_set_apps(doc["items"].as<JsonArrayConst>());
     } else if (strcmp(t, "tiles") == 0) {
         ui_set_tiles(doc["items"].as<JsonArrayConst>());
     } else if (strcmp(t, "cfg") == 0) {
@@ -129,6 +161,8 @@ static void handle_line(char *line, size_t len)
         if (n == 0) {
             ui_clear_art();
         } else if (n == ART_BYTES && (doc["w"] | 0) == ART_W && (doc["h"] | 0) == ART_H && art_rx) {
+            bin_kind = BIN_ART;
+            bin_dst = art_rx;
             art_need = n;  // bu satırdan sonraki n bayt ikili veri
             art_got = 0;
             art_crc = doc["crc"] | 0UL;
@@ -145,8 +179,18 @@ static void handle_line(char *line, size_t len)
 
 static void finish_art()
 {
-    uint32_t crc = esp_rom_crc32_le(0, art_rx, art_need);
+    uint32_t crc = esp_rom_crc32_le(0, bin_dst, art_need);
     bool ok = crc == art_crc;
+    if (bin_kind == BIN_ICON) {
+        if (ok) {
+            lvgl_port_lock(-1);
+            ui_set_app_icon(bin_index, icon_rx, ICON_PX, ICON_PX);  // ui kendi tamponuna kopyalar
+            lvgl_port_unlock();
+        }
+        Serial.printf("{\"t\":\"icon\",\"i\":%d,\"ok\":%d}\n", bin_index, ok ? 1 : 0);
+        art_need = 0;
+        return;
+    }
     if (ok) {
         lvgl_port_lock(-1);
         uint8_t *tmp = art_show;  // tamponları değiştir: LVGL yarım resim çizmez
@@ -165,7 +209,7 @@ static void poll_serial()
         if (art_need) {  // ikili alım modu
             size_t avail = Serial.available();
             size_t want = art_need - art_got;
-            art_got += Serial.read(art_rx + art_got, avail < want ? avail : want);
+            art_got += Serial.read(bin_dst + art_got, avail < want ? avail : want);
             art_deadline = millis() + ART_TIMEOUT_MS;  // veri geldikçe süre uzar (hareketsizlik zaman aşımı)
             if (art_got >= art_need) {
                 finish_art();
@@ -189,9 +233,13 @@ static void poll_serial()
         }
     }
     if (art_need && static_cast<int32_t>(millis() - art_deadline) > 0) {
-        Serial.printf("# kapak zaman asimi (%u / %u bayt)\n", static_cast<unsigned>(art_got),
+        Serial.printf("# ikili blok zaman asimi (%u / %u bayt)\n", static_cast<unsigned>(art_got),
                       static_cast<unsigned>(art_need));
-        Serial.println("{\"t\":\"art\",\"ok\":0}");
+        if (bin_kind == BIN_ICON) {
+            Serial.printf("{\"t\":\"icon\",\"i\":%d,\"ok\":0}\n", bin_index);
+        } else {
+            Serial.println("{\"t\":\"art\",\"ok\":0}");
+        }
         art_need = 0;  // satır moduna dön
     }
 }
@@ -204,6 +252,7 @@ void setup()
 
     art_rx = static_cast<uint8_t *>(heap_caps_malloc(ART_BYTES, MALLOC_CAP_SPIRAM));
     art_show = static_cast<uint8_t *>(heap_caps_malloc(ART_BYTES, MALLOC_CAP_SPIRAM));
+    icon_rx = static_cast<uint8_t *>(heap_caps_malloc(ICON_BYTES, MALLOC_CAP_SPIRAM));
     if (!art_rx || !art_show) {
         Serial.println("# HATA: kapak tamponlari ayrilamadi");
         art_rx = nullptr;  // kapak özelliği kapalı, panel çalışmaya devam eder

@@ -18,6 +18,7 @@ EXAMPLE_PATH = Path(__file__).resolve().parents[2] / "deploy" / "ayarlar.ornek.t
 
 MAX_TILES = 12
 MAX_SERVERS = 8
+MAX_APPS = 15
 TITLE_MAX = 24  # karakter (kutuya sığsın)
 DESC_MAX = 28
 
@@ -90,6 +91,7 @@ class Settings:
     gh_every_s: int = 120
     srv_every_s: int = 60
     servers: list[Server] = field(default_factory=list)
+    apps: list[tuple[str, str]] = field(default_factory=list)  # (masaüstü kimliği, gösterilecek ad ya da "")
     shortcuts: list[Shortcut] = field(default_factory=list)
 
 
@@ -267,6 +269,21 @@ def parse(data: dict) -> tuple[Settings, list[str]]:
             s.servers.append(Server(name=name.strip()[:20], tcp=(m.group(1), int(m.group(2)))))
         else:
             warn.append(f"sunucu \"{name}\": adres = \"https://…\" ya da tcp = \"makine:port\" olmalı")
+
+    ua = data.get("uygulamalar", {})
+    raw_apps = ua.get("liste", [])
+    if not isinstance(raw_apps, list):
+        warn.append("uygulamalar.liste bir liste olmalı")
+        raw_apps = []
+    if len(raw_apps) > MAX_APPS:
+        warn.append(f"en çok {MAX_APPS} uygulama gösterilebilir; fazlası atlandı")
+    for x in raw_apps[:MAX_APPS]:
+        app_id, title = (x, "") if isinstance(x, str) else ((x.get("id"), x.get("ad", "")) if isinstance(x, dict)
+                                                             else (None, ""))
+        if isinstance(app_id, str) and re.fullmatch(r"[\w.+-]{1,80}", app_id) and isinstance(title, str):
+            s.apps.append((app_id, title.strip()[:TITLE_MAX]))
+        else:
+            warn.append(f"uygulamalar: geçersiz kayıt {x!r} (\"kimlik\" ya da {{id = \"kimlik\", ad = \"Ad\"}})")
 
     raw = data.get("kisayol", [])
     if not isinstance(raw, list):

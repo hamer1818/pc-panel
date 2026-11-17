@@ -62,6 +62,16 @@ sure_sn = 60             # denetim aralığı
 # ad = "sunucu SSH"
 # tcp = "203.0.113.10:22"
 
+[uygulamalar]
+# Uygulamalar sayfası (en çok 15, 5×3). Masaüstü kimliği = .desktop dosyasının adı
+# (~/.local/share/applications, /usr/share/applications). Ad ve ikon .desktop dosyasından gelir;
+# ad değiştirmek için {id = "kimlik", ad = "Kısa ad"}. Kimlikleri görmek için: ls /usr/share/applications
+liste = [
+    "steam",
+    {id = "com.microsoft.VSCode", ad = "VS Code"},
+    "spotify",
+]
+
 # ---------------------------------------------------------------------------------------------------
 # Kısayollar: en çok 12 kutu, yazıldığı sırayla (8'e kadar 2 satır, daha fazlası 3 satır).
 #
