@@ -16,6 +16,7 @@ En yeni kayıt en üstte.
   açılıyor, kilit açılınca geri geliyor. Yeniden başlatma sonrası (açılış 16:47:07) servis 16:47:31'de kendiliğinden
   başladı ve karta bağlandı; kısayollar servis içinden çalışıyor.
 - **Faz 6 tamamlandı → Faz 0–6, yani ana plan bitti.** Faz 7 isteğe bağlı; kullanıcı seçecek.
+- Kullanıcı Faz 7 için "şimdilik yeter" dedi; proje bu noktada beklemede. Seçenekler `00-plan.md` Faz 7'de.
 
 ## 2026-11-17 — Faz 5: kapak resmi
 - Protokol v1.2 yazıldı (`02-mimari.md` "Kapak resmi"): başlık satırı + 115.200 bayt RGB565 + CRC-32, kart yanıtı.
