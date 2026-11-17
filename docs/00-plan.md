@@ -111,11 +111,14 @@ Karar verilecek içerik listesi:
 ---
 
 ## Faz 5 — Medya kontrolünü tamamlama
-- [ ] **[CLAUDE]** Kapak resmini indir/oku → 240×240'a küçült → RGB565 olarak karta gönder; aynı kapağı tekrar gönderme.
+- [x] **[CLAUDE]** Kapak resmini indir/oku → 240×240'a küçült → RGB565 olarak karta gönder; aynı kapağı tekrar gönderme.
+      → `host/pc_panel/art.py` (Pillow), yazma iş parçacığı (`link.py`), protokol v1.2; kart 0.5.0: çift PSRAM tamponu,
+      CRC-32 kontrolü, 2 sn hareketsizlik zaman aşımı. İlk deneme: 112 KB ≈1,5 sn'de alındı, CRC tuttu.
 - [x] **[CLAUDE]** Sistem sesi (PipeWire, `wpctl`) okuma/ayarlama, sessiz; kaydırıcı ile çift yönlü eşleme → Faz 4'te yapıldı.
 - [x] **[CLAUDE]** İlerleme çubuğuna dokunarak sarma (seek) → Faz 4'te yapıldı.
 - [ ] **[CLAUDE]** Birden çok çalar varsa karttan çalar seçimi (isteğe bağlı).
-- [ ] **[SEN]** Farklı çalarlarla test, hataları bana bildir.
+- [ ] **[SEN]** Farklı çalarlarla test: şarkı değişince kapak geliyor mu? Spotify, tarayıcıda YouTube, yerel çalar;
+      çalar kapatılınca yer tutucuya dönüyor mu?
 
 **Bitti ölçütü:** Spotify ve tarayıcıda bütün kontroller ve kapak çalışıyor.
 

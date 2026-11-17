@@ -11,6 +11,8 @@
 #include <Arduino.h>
 #include <ArduinoJson.h>
 #include <esp_display_panel.hpp>
+#include <esp_heap_caps.h>
+#include <esp_rom_crc.h>
 #include <lvgl.h>
 
 #include "lvgl_v8_port.h"
@@ -19,18 +21,30 @@
 using namespace esp_panel::drivers;
 using namespace esp_panel::board;
 
-#define FW_VERSION "0.4.0"
+#define FW_VERSION "0.5.0"
 #define PROTO_VERSION 1
 #define LINK_BAUD 921600
 #define LINK_TIMEOUT_MS 3000
 #define HEARTBEAT_MS 1000
 #define LINE_MAX 2048
+#define ART_W 240
+#define ART_H 240
+#define ART_BYTES (ART_W * ART_H * 2)
+#define ART_TIMEOUT_MS 2000
 
 static char line_buf[LINE_MAX];
 static size_t line_len = 0;
 static bool line_overflow = false;
 static uint32_t last_rx_ms = 0;
 static uint32_t rx_count = 0;
+
+// Kapak resmi: biri alınırken öteki gösterilen iki PSRAM tamponu (bkz. docs/02-mimari.md "Kapak resmi")
+static uint8_t *art_rx = nullptr;     // alınmakta olan
+static uint8_t *art_show = nullptr;   // ekranda gösterilen
+static size_t art_need = 0;           // >0 ise ikili alım modundayız
+static size_t art_got = 0;
+static uint32_t art_crc = 0;
+static uint32_t art_deadline = 0;
 
 // UI'dan (LVGL görevi) ve loop()'tan çağrılabilir; tek printf çağrısı = tek yazma, satırlar karışmaz.
 void link_send_cmd(const char *cmd, int value, bool has_value)
@@ -64,8 +78,21 @@ static void handle_line(char *line, size_t len)
     if (strcmp(t, "stat") == 0) {
         ui_update_stat(o);
     } else if (strcmp(t, "media") == 0) {
-        ui_update_media(o);    } else if (strcmp(t, "vol") == 0) {
+        ui_update_media(o);
+    } else if (strcmp(t, "vol") == 0) {
         ui_update_vol(o);
+    } else if (strcmp(t, "art") == 0) {
+        size_t n = doc["n"] | 0;
+        if (n == 0) {
+            ui_clear_art();
+        } else if (n == ART_BYTES && (doc["w"] | 0) == ART_W && (doc["h"] | 0) == ART_H && art_rx) {
+            art_need = n;  // bu satırdan sonraki n bayt ikili veri
+            art_got = 0;
+            art_crc = doc["crc"] | 0UL;
+            art_deadline = millis() + ART_TIMEOUT_MS;
+        } else {
+            Serial.println("{\"t\":\"art\",\"ok\":0}");  // beklenmeyen boyut
+        }
     }
     lvgl_port_unlock();
 
@@ -73,9 +100,35 @@ static void handle_line(char *line, size_t len)
     rx_count++;
 }
 
+static void finish_art()
+{
+    uint32_t crc = esp_rom_crc32_le(0, art_rx, art_need);
+    bool ok = crc == art_crc;
+    if (ok) {
+        lvgl_port_lock(-1);
+        uint8_t *tmp = art_show;  // tamponları değiştir: LVGL yarım resim çizmez
+        art_show = art_rx;
+        art_rx = tmp;
+        ui_set_art(art_show, ART_W, ART_H);
+        lvgl_port_unlock();
+    }
+    Serial.printf("{\"t\":\"art\",\"ok\":%d}\n", ok ? 1 : 0);
+    art_need = 0;
+}
+
 static void poll_serial()
 {
     while (Serial.available() > 0) {
+        if (art_need) {  // ikili alım modu
+            size_t avail = Serial.available();
+            size_t want = art_need - art_got;
+            art_got += Serial.read(art_rx + art_got, avail < want ? avail : want);
+            art_deadline = millis() + ART_TIMEOUT_MS;  // veri geldikçe süre uzar (hareketsizlik zaman aşımı)
+            if (art_got >= art_need) {
+                finish_art();
+            }
+            continue;
+        }
         int c = Serial.read();
         if (c == '\n') {
             if (!line_overflow && line_len > 0) {
@@ -92,6 +145,12 @@ static void poll_serial()
             }
         }
     }
+    if (art_need && static_cast<int32_t>(millis() - art_deadline) > 0) {
+        Serial.printf("# kapak zaman asimi (%u / %u bayt)\n", static_cast<unsigned>(art_got),
+                      static_cast<unsigned>(art_need));
+        Serial.println("{\"t\":\"art\",\"ok\":0}");
+        art_need = 0;  // satır moduna dön
+    }
 }
 
 void setup()
@@ -99,6 +158,13 @@ void setup()
     Serial.setRxBufferSize(16384);
     Serial.begin(LINK_BAUD);
     Serial.println("# pc-panel basliyor");
+
+    art_rx = static_cast<uint8_t *>(heap_caps_malloc(ART_BYTES, MALLOC_CAP_SPIRAM));
+    art_show = static_cast<uint8_t *>(heap_caps_malloc(ART_BYTES, MALLOC_CAP_SPIRAM));
+    if (!art_rx || !art_show) {
+        Serial.println("# HATA: kapak tamponlari ayrilamadi");
+        art_rx = nullptr;  // kapak özelliği kapalı, panel çalışmaya devam eder
+    }
 
     Board *board = new Board();
     board->init();

@@ -82,8 +82,25 @@ uv run pc-panel --konsol   # sadece terminalde göster
 - Bilgisayar: port kaybolursa (kablo çıktı) 2 sn arayla yeniden açmayı dener. 5 sn boyunca karttan `hb` gelmezse
   bunu günlüğe yazar, ama göndermeye devam eder.
 
-### Sonra eklenecekler
-- `art` (Faz 5): kapak resmi. Bir başlık satırı gelir, ardından ikili RGB565 veri (200×200 = 80.000 bayt).
+### Kapak resmi (v1.2 — Faz 5)
+Kapak, satır tabanlı protokolün içinde **tek ikili (binary) blok** olarak gider:
+
+1. Başlık satırı: `{"t":"art","w":240,"h":240,"n":115200,"crc":3735928559}`
+2. Hemen ardından **tam `n` bayt** ham veri: RGB565, küçük uçlu (little-endian), satır satır, 240×240.
+   `crc`, bu baytların standart CRC-32 değeri (Python `zlib.crc32` = ESP32 `esp_rom_crc32_le(0, …)`).
+3. Kart veriyi ikinci bir PSRAM tamponuna alır. CRC tutarsa gösterilen tamponla yer değiştirir (yırtılma olmaz).
+   Sonra `{"t":"art","ok":1}` (ya da hata için `"ok":0`) ile yanıt verir.
+4. Kapak yoksa `{"t":"art","n":0}` gelir; kart yer tutucuyu gösterir.
+
+Kurallar:
+- Bilgisayar aynı kapağı ikinci kez göndermez. Kart "merhaba" dediğinde (yeniden başladığında) ya da bağlantı
+  yeniden kurulduğunda kapak yeniden gönderilir.
+- Kart `"ok":0` derse aynı kapak en fazla 3 kez yeniden denenir.
+- Kart, ikili veri 2 sn içinde tamamlanmazsa aktarımı bırakır ve satır moduna döner (kaybolan baytlara karşı).
+- Bütün giden mesajlar tek bir **yazıcı iş parçacığından** sırayla yazılır. Böylece kapak verisinin ortasına
+  başka bir satır karışmaz ve 115 KB'lık yazma (≈1,3 sn) ana döngüyü bekletmez.
+- Kaynaklar: `https://…` (Spotify vb., 5 sn zaman aşımıyla indirilir) ve `file://…` (yerel çalarlar,
+  tarayıcıların geçici kapakları). Resim ortadan kare kırpılıp 240×240'a küçültülür.
 
 ### Kısayollar güvenliği
 Kart yalnızca bir **kısayol kimliği** (`id`) gönderir. Bilgisayar bu kimliği `pc_panel/shortcuts.py` içindeki sabit

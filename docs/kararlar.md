@@ -11,6 +11,18 @@ Her karar: tarih · karar · düşünülen seçenekler · neden.
   - Diğer seçenekler: koyu "oyuncu" (neon) · aydınlık.
 - **Kısayollar sayfası:** olacak (Faz 7'ye bırakılmadı).
 
+## 2026-11-17 · Kapak resmi: aynı seri hatta ikili blok, 240×240 RGB565, CRC-32
+- Seçenekler: base64 JSON içinde (≈%33 büyür, ayrıştırması pahalı) · ikili blok · JPEG gönderip kartta açmak
+  (TJpgDec; daha az veri ama ek kütüphane ve işlemci yükü)
+- Neden: ikili blok en basit ve hızlısı. 115 KB, 921600 baud'da ≈1,3 sn sürüyor; şarkı başına bir kez
+  gönderildiği için yeterli. CRC ve zaman aşımı, kayan baytlara karşı protokolü kendiliğinden toparlıyor.
+  Kartta iki PSRAM tamponu kullanılıyor (230 KB / 8 MB); yeni kapak tamamen gelince yer değiştiriyor.
+- Kapak 240×240: tasarımdaki kapak alanıyla birebir, kartta ölçekleme gerekmiyor.
+
+## 2026-11-17 · Giden mesajlar tek bir yazma iş parçacığından
+- Neden: 115 KB'lık yazma asyncio döngüsünü ≈1,3 sn bekletiyordu ve ortasına başka bir satır karışabilirdi.
+  Kuyruk + tek yazıcı ile ikisi de çözüldü; `send()` artık beklemiyor.
+
 ## 2026-11-17 · Sistem sesi ve kısayollar Faz 5 yerine Faz 4'te
 - Neden: onaylanan tasarımda ses kaydırıcısı ve kısayol kutuları var. Çalışmayan düğme bırakmak test etmeyi
   zorlaştırırdı, iş de küçük (`wpctl` + sabit komut listesi). Faz 5'te yalnızca kapak resmi kaldı.

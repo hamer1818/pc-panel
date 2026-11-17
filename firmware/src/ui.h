@@ -11,6 +11,9 @@ void ui_set_link(bool ok);
 void ui_update_stat(JsonObjectConst o);
 void ui_update_media(JsonObjectConst o);
 void ui_update_vol(JsonObjectConst o);
+// Kapak resmi: RGB565 (küçük uçlu) w×h piksel; veri, yeni çağrıya kadar geçerli kalmalı
+void ui_set_art(const uint8_t *rgb565, int w, int h);
+void ui_clear_art();
 
 // main.cpp'de tanımlı: karttan bilgisayara komut gönderir
 void link_send_cmd(const char *cmd, int value, bool has_value);

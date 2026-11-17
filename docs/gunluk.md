@@ -2,6 +2,19 @@
 
 En yeni kayıt en üstte.
 
+## 2026-11-17 — Faz 5: kapak resmi
+- Protokol v1.2 yazıldı (`02-mimari.md` "Kapak resmi"): başlık satırı + 115.200 bayt RGB565 + CRC-32, kart yanıtı.
+- Bilgisayar: `art.py` (https / file:// okuma, ortadan kare kırpma, 240×240, RGB565 LE), Pillow 13.0.0 eklendi.
+  `link.py`'ye yazma kuyruğu ve yazıcı iş parçacığı eklendi (write_timeout 0,5 → 5 sn). Servis kapağı
+  şarkı değişince bir kez, kart yeniden başlayınca ya da bağlantı yeniden kurulunca tekrar gönderiyor.
+  Hatalı alımda en çok 3 deneme yapıyor. Yazarken deneme sayacının her seferinde sıfırlandığı bir hata
+  fark edildi ve düzeltildi.
+- Kart 0.5.0: `esp_rom_crc32_le` ile CRC, iki PSRAM tamponu (yer değiştirme LVGL kilidi altında),
+  `lv_img` + kartta `clip_corner`. RAM %7,7, flash %15,5.
+- Deneme: Spotify kapağı 0,26 sn'de indirildi ve çevrildi. Karta 112 KB ≈1,5 sn'de ulaştı, CRC tuttu,
+  aktarım sırasında bağlantı kopmadı.
+- **Sıradaki:** kullanıcı şarkı değiştirerek ve farklı çalarlarla deneyecek.
+
 ## 2026-11-17 — Faz 4: Türkçe yazı tipleri ve karta ilk yükleme
 - Kullanıcı `npm install --prefix tools/node lv_font_conv@1.5.2` ile dönüştürücüyü kurdu.
 - Betik hatası: 1.5.2'de `--lv-font-name` seçeneği yok. Seçenek kaldırıldı; LVGL'deki ad çıktı dosyasının

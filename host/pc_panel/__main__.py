@@ -17,7 +17,7 @@ import json
 import sys
 import time
 
-from . import audio, shortcuts
+from . import art, audio, shortcuts
 from .console import render
 from .gpu import GpuCollector
 from .link import DEFAULT_BAUD, SerialLink
@@ -26,6 +26,7 @@ from .protocol import media_message, stat_message, vol_message
 from .system import SystemCollector
 
 HB_TIMEOUT_S = 5.0
+ART_MAX_RETRY = 3
 MEDIA_COMMANDS = {"play_pause", "play", "pause", "next", "prev", "seek_rel", "seek_abs"}
 
 
@@ -44,11 +45,39 @@ async def serve(args: argparse.Namespace, media: MediaWatcher) -> int:
     link = SerialLink(args.port, args.baud, log=log)
     log(f"servis başladı (GPU: {gpu.name or 'yok'}, {args.baud} baud)")
 
+    # --- Kapak resmi: değişince bir kez gönder (bkz. docs/02-mimari.md "Kapak resmi") ---
+    art_state = {"sent": None, "pending": None, "task": None, "fails": 0, "url": None}
+
+    async def push_art(key: tuple, url: str) -> None:
+        pixels = await asyncio.to_thread(art.load, url) if url else None
+        if art_state["pending"] != key:  # bu arada şarkı değişti
+            return
+        link.send(art.header(pixels), pixels or b"")
+        art_state["sent"], art_state["pending"] = key, None
+        if url:
+            what = f"{len(pixels) // 1024} KB" if pixels else "okunamadı, yer tutucu"
+            log(f"kapak gönderildi ({what})" if args.debug or not pixels else "kapak gönderildi")
+
+    def maybe_send_art(url: str) -> None:
+        key = (url, link.generation)
+        if key in (art_state["sent"], art_state["pending"]):
+            return
+        if url != art_state["url"]:  # yeni kapak: deneme sayacı sıfırdan
+            art_state["url"], art_state["fails"] = url, 0
+        task = art_state["task"]
+        if task and not task.done():
+            task.cancel()
+        art_state["pending"] = key
+        art_state["task"] = asyncio.create_task(push_art(key, url))
+
     async def send_media() -> None:
-        msg = media_message(await media.poll())
+        state = await media.poll()
+        msg = media_message(state)
         link.send(msg)
         if args.debug:
             log(f"→ {json.dumps(msg, ensure_ascii=False)}")
+        active = state.get("active")
+        maybe_send_art(active["art_url"] if active and active["status"] != "Stopped" else "")
 
     async def send_vol() -> None:
         msg = vol_message(await audio.state())
@@ -88,6 +117,16 @@ async def serve(args: argparse.Namespace, media: MediaWatcher) -> int:
             kind = msg.get("t")
             if kind == "hello":
                 log(f"kart: merhaba (yazılım {msg.get('fw')}, protokol {msg.get('proto')})")
+                art_state["sent"] = None  # kart yeniden başladı: kapağı yeniden gönder
+            elif kind == "art":
+                if msg.get("ok"):
+                    if args.debug:
+                        log("kart: kapak alındı")
+                else:
+                    art_state["fails"] += 1
+                    log(f"kart: kapak alınamadı (deneme {art_state['fails']}/{ART_MAX_RETRY})")
+                    if art_state["fails"] < ART_MAX_RETRY:
+                        art_state["sent"] = None
             elif kind == "hb":
                 if args.debug:
                     log(f"kart: kalp atışı, açık {msg.get('up')} sn")

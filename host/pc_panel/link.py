@@ -1,6 +1,8 @@
 """Kartla seri bağlantı: satır satır JSON, kablo çıkıp takılınca kendiliğinden yeniden bağlanma.
 
-Okuma ayrı bir iş parçacığında yapılır (pyserial engelleyici); gelen satırlar asyncio kuyruğuna aktarılır.
+Okuma ve yazma ayrı iş parçacıklarında yapılır (pyserial engelleyici). Gelen satırlar asyncio kuyruğuna aktarılır.
+Giden her şey tek bir yazma kuyruğundan sırayla yazılır: 115 KB'lık kapak resmi (≈1,3 sn) hem ana döngüyü
+bekletmez hem de ortasına başka bir satır karışmaz.
 Port açılırken DTR/RTS pyserial varsayılanında (açık) bırakılır: kapatılırsa kartın otomatik reset devresi
 kartı yeniden başlatıyor (deneyle doğrulandı, bkz. docs/02-mimari.md).
 """
@@ -10,6 +12,7 @@ from __future__ import annotations
 import asyncio
 import json
 import os
+import queue
 import threading
 import time
 
@@ -45,6 +48,8 @@ class SerialLink:
         self._loop: asyncio.AbstractEventLoop | None = None
         self._lock = threading.Lock()
         self._busy_warned = False
+        self._outq: queue.Queue[bytes] | None = None
+        self.generation = 0  # her yeni bağlantıda artar (ör. kapak resmini yeniden göndermek için)
 
     @property
     def connected(self) -> bool:
@@ -57,7 +62,7 @@ class SerialLink:
         try:
             # exclusive=True: portu başka bir program (ör. ikinci bir pc-panel ya da `pio device monitor`)
             # açmışsa açılmaz. İki okuyucu aynı portta birbirinin verisini çalıp bağlantıyı koparıyordu.
-            ser = serial.Serial(port, self.baud, timeout=0.2, write_timeout=0.5, exclusive=True)
+            ser = serial.Serial(port, self.baud, timeout=0.2, write_timeout=5, exclusive=True)
         except (serial.SerialException, OSError) as e:
             if "lock" in str(e).lower() or "busy" in str(e).lower():
                 if not self._busy_warned:
@@ -67,8 +72,11 @@ class SerialLink:
             return False
         self._busy_warned = False
         ser.reset_input_buffer()
-        self.ser, self.port_name = ser, port
+        outq: queue.Queue[bytes] = queue.Queue()
+        self.ser, self.port_name, self._outq = ser, port, outq
+        self.generation += 1
         threading.Thread(target=self._reader, args=(ser,), daemon=True, name="serial-reader").start()
+        threading.Thread(target=self._writer, args=(ser, outq), daemon=True, name="serial-writer").start()
         self.log(f"kart bağlandı: {port}")
         return True
 
@@ -91,6 +99,18 @@ class SerialLink:
                 buf = b""
         self._loop.call_soon_threadsafe(self._lost, ser)
 
+    def _writer(self, ser: serial.Serial, outq: "queue.Queue[bytes]") -> None:
+        while self.ser is ser:
+            try:
+                data = outq.get(timeout=0.2)
+            except queue.Empty:
+                continue
+            try:
+                ser.write(data)
+            except (serial.SerialException, serial.SerialTimeoutException, OSError, TypeError):
+                self._loop.call_soon_threadsafe(self._lost, ser)
+                return
+
     def _lost(self, ser: serial.Serial) -> None:
         with self._lock:
             if self.ser is not ser:
@@ -102,17 +122,14 @@ class SerialLink:
             pass
         self.log("kart bağlantısı koptu, yeniden denenecek")
 
-    def send(self, obj: dict) -> bool:
-        ser = self.ser
-        if ser is None:
+    def send(self, obj: dict, payload: bytes = b"") -> bool:
+        """JSON satırını (ve varsa hemen ardından ikili veriyi) yazma kuyruğuna koyar; beklemez."""
+        outq = self._outq
+        if self.ser is None or outq is None:
             return False
-        data = (json.dumps(obj, ensure_ascii=False, separators=(",", ":")) + "\n").encode()
-        try:
-            ser.write(data)
-            return True
-        except (serial.SerialException, serial.SerialTimeoutException, OSError):
-            self._lost(ser)
-            return False
+        line = (json.dumps(obj, ensure_ascii=False, separators=(",", ":")) + "\n").encode()
+        outq.put(line + payload)  # tek parça: araya başka mesaj giremez
+        return True
 
     async def maintain(self) -> None:
         """Bağlantıyı açık tutar; kopunca RECONNECT_S arayla yeniden dener."""

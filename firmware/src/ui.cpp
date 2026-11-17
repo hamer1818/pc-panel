@@ -52,6 +52,8 @@ lv_obj_t *net_dn, *net_up, *pc_up;
 
 lv_obj_t *m_pill, *m_state, *m_title, *m_artist, *m_album, *m_seek, *m_pos, *m_len, *m_pp, *m_pp_lbl;
 lv_obj_t *v_icon, *v_slider, *v_pct;
+lv_obj_t *art_img, *art_note;
+lv_img_dsc_t art_dsc;
 int media_len = 0;
 
 struct Tile {
@@ -466,9 +468,13 @@ void build_media(lv_obj_t *page)
     lv_obj_set_style_bg_color(art, lv_color_hex(0x2b3a4a), 0);
     lv_obj_set_style_bg_grad_color(art, lv_color_hex(0x3a2b35), 0);
     lv_obj_set_style_bg_grad_dir(art, LV_GRAD_DIR_VER, 0);
-    lv_obj_t *note = label(art, FICON, C_TEXT, ICON_MUSIC);
-    lv_obj_set_style_text_opa(note, LV_OPA_20, 0);
-    lv_obj_center(note);
+    lv_obj_set_style_clip_corner(art, true, 0);  // kapak resmi yuvarlak köşelerden taşmasın
+    art_note = label(art, FICON, C_TEXT, ICON_MUSIC);
+    lv_obj_set_style_text_opa(art_note, LV_OPA_20, 0);
+    lv_obj_center(art_note);
+    art_img = lv_img_create(art);
+    lv_obj_set_pos(art_img, 0, 0);
+    lv_obj_add_flag(art_img, LV_OBJ_FLAG_HIDDEN);
 
     m_pill = label(page, F12, C_TEXT, "-");
     lv_obj_set_pos(m_pill, 274, 10);
@@ -825,4 +831,25 @@ void ui_update_vol(JsonObjectConst o)
     lv_obj_set_style_text_color(v_icon, mute ? C_ACCENT : C_MUTED, 0);
     set_tile_toggle("mute", mute);
     set_tile_toggle("mic", (o["mic_mute"] | 0) != 0);
+}
+
+void ui_set_art(const uint8_t *rgb565, int w, int h)
+{
+    art_dsc.header.always_zero = 0;
+    art_dsc.header.cf = LV_IMG_CF_TRUE_COLOR;
+    art_dsc.header.w = w;
+    art_dsc.header.h = h;
+    art_dsc.data_size = static_cast<uint32_t>(w) * h * 2;
+    art_dsc.data = rgb565;
+    lv_img_cache_invalidate_src(&art_dsc);  // aynı tanımlayıcı, yeni veri
+    lv_img_set_src(art_img, &art_dsc);
+    lv_obj_clear_flag(art_img, LV_OBJ_FLAG_HIDDEN);
+    lv_obj_add_flag(art_note, LV_OBJ_FLAG_HIDDEN);
+    lv_obj_invalidate(art_img);
+}
+
+void ui_clear_art()
+{
+    lv_obj_add_flag(art_img, LV_OBJ_FLAG_HIDDEN);
+    lv_obj_clear_flag(art_note, LV_OBJ_FLAG_HIDDEN);
 }
