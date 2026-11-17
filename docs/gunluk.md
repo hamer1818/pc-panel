@@ -2,6 +2,18 @@
 
 En yeni kayıt en üstte.
 
+## 2026-11-17 — Açık kaynak hazırlığı ve GitHub'da yayın (kart 0.11.0)
+- Kullanıcı kararı: depo public olacak; commit e-postası kişisel Gmail yerine `info@hamza.tr`.
+- Genelleştirme: kartın seri numarası koddan çıktı (port VID:PID ile bulunup by-id yoluna çevriliyor; PlatformIO
+  portu `firmware/*.local.ini` ile, bu bilgisayar için `kart.local.ini` git dışı). Servis ve fish dosyalarında
+  `@KOK@` şablonu, `kur.sh` doldurur. CPU/GPU adları bilgisayardan `hw` mesajıyla geliyor (karttan sabit adlar
+  kalktı). Disk listesi ayarda (`[sistem] diskler`, varsayılan `/`; tek diskte ikinci satır gizli). Git klasörü
+  varsayılanı `~`. Örnek ayarlardaki Zen kısayolu yerine GitHub kutusu.
+- Eklendi: `LICENSE` (MIT), `THIRD_PARTY.md` (Montserrat OFL, Font Awesome CC BY/OFL, Espressif CC0/Apache-2.0,
+  LVGL MIT), `firmware/fonts/kaynak/OFL-Montserrat.txt`, iki dilli `README.md`.
+- Deneme: kart 0.11.0 yüklendi, `kur.sh` yeniden çalıştı (servis ve fish dosyasına doğru yol yazıldı), `hw` mesajı
+  "Ryzen 7 9800X3D" / "GeForce RTX 5080" gitti, servis çalışıyor.
+
 ## 2026-11-17 — Hata: yeniden bağlanınca ikonlar kayboluyordu (kart 0.10.1)
 - Kullanıcı: Uygulamalar sayfasında yalnızca Steam ikonu var, diğerlerinde sadece yazı.
 - Günlük: 19:21:18'de seri bağlantı iki kez koptu ve yeniden kuruldu (çekirdek günlüğünde USB kopması yok; o anda

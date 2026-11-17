@@ -47,7 +47,7 @@
 
 **Fabrika yazılımına geri dönmek için** (yedek: `yedek/fabrika-16MB.bin`, git dışı):
 ```bash
-~/.platformio/penv/bin/esptool --port /dev/serial/by-id/usb-1a86_USB_Single_Serial_5B90123287-if00 -b 921600 write-flash 0 yedek/fabrika-16MB.bin
+~/.platformio/penv/bin/esptool --port /dev/serial/by-id/usb-1a86_USB_Single_Serial_<seri>-if00 -b 921600 write-flash 0 yedek/fabrika-16MB.bin
 ```
 
 **Takma notu:** İlk denemede kart yanlış girişe takılıydı. USB tanıma yarıda kaldı: çekirdek logunda

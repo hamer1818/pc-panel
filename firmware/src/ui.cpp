@@ -48,7 +48,7 @@ lv_obj_t *sleep_overlay;
 volatile bool wake_requested = false;
 
 struct Big {  // CPU / GPU kartı
-    lv_obj_t *arc, *num, *v1, *v2, *v3, *chart;
+    lv_obj_t *name, *arc, *num, *v1, *v2, *v3, *chart;
     lv_chart_series_t *ser;
 };
 Big cpu, gpu;
@@ -91,7 +91,7 @@ const DefaultTile DEFAULT_TILES[] = {
     {"screenshot", "camera", "Ekran görüntüsü", "Spectacle", TG_NONE},
     {"mute", "volume", "Sesi kapat", "", TG_MUTE},
     {"terminal", "terminal", "Terminal", "Konsole", TG_NONE},
-    {"tarayici", "globe", "Tarayıcı", "Zen", TG_NONE},
+    {"github", "github", "GitHub", "tarayıcıda", TG_NONE},
     {"dosyalar", "folder", "Dosyalar", "Dolphin", TG_NONE},
     {"spotify", "spotify", "Spotify", "öne getir", TG_NONE},
 };
@@ -357,8 +357,8 @@ Big make_big(lv_obj_t *page, int x, const char *title, const char *name, const c
     Big b;
     lv_obj_t *c = card(page, x, 4, 380, 228);
     caption(c, 16, 14, title);
-    lv_obj_t *n = label_right(c, F12, C_FAINT, 364, 14, 200);
-    lv_label_set_text(n, name);
+    b.name = label_right(c, F12, C_FAINT, 364, 14, 220);  // donanım adı bilgisayardan (`hw`)
+    lv_label_set_text(b.name, name);
 
     b.arc = lv_arc_create(c);
     lv_obj_set_size(b.arc, 118, 118);
@@ -427,8 +427,8 @@ Small make_small(lv_obj_t *page, int x, int w, const char *title, const char *fo
 
 void build_system(lv_obj_t *page)
 {
-    cpu = make_big(page, 14, "CPU", "Ryzen 7 9800X3D", "Sıcaklık", "Frekans", "En yoğun çekirdek");
-    gpu = make_big(page, 406, "GPU", "GeForce RTX 5080", "Sıcaklık", "Güç", "Fan");
+    cpu = make_big(page, 14, "CPU", "", "Sıcaklık", "Frekans", "En yoğun çekirdek");
+    gpu = make_big(page, 406, "GPU", "", "Sıcaklık", "Güç", "Fan");
 
     ram = make_small(page, 14, 185, "RAM", "swap -");
     vram = make_small(page, 211, 185, "VRAM", "GPU belleği");
@@ -1193,13 +1193,25 @@ void ui_update_stat(JsonObjectConst o)
 
     // Diskler
     JsonArrayConst disks = o["disks"];
-    for (int i = 0; i < 2 && i < static_cast<int>(disks.size()); i++) {
+    for (int i = 0; i < 2; i++) {  // ayarda tek disk varsa ikinci satır gizlenir
+        bool on = i < static_cast<int>(disks.size());
+        lv_obj_t *row[3] = {disk_name[i], disk_pct[i], disk_bar[i]};
+        for (lv_obj_t *r : row) {
+            if (on) {
+                lv_obj_clear_flag(r, LV_OBJ_FLAG_HIDDEN);
+            } else {
+                lv_obj_add_flag(r, LV_OBJ_FLAG_HIDDEN);
+            }
+        }
+        if (!on) {
+            continue;
+        }
         float p = disks[i]["p"] | 0.0f;
         const char *m = disks[i]["m"] | "?";
         if (i == 0) {
             snprintf(buf, sizeof(buf), "Sistem %s", m);
         } else {
-            snprintf(buf, sizeof(buf), "Veri %s", m);
+            snprintf(buf, sizeof(buf), "%s", m);
         }
         set_text(disk_name[i], buf);
         lv_label_set_text_fmt(disk_pct[i], "%%%d", static_cast<int>(p + 0.5f));
@@ -1654,6 +1666,12 @@ void ui_set_app_icon(int index, const uint8_t *data, int w, int h)
     lv_obj_clear_flag(a.img, LV_OBJ_FLAG_HIDDEN);
     lv_obj_add_flag(a.letter, LV_OBJ_FLAG_HIDDEN);
     lv_obj_invalidate(a.img);
+}
+
+void ui_set_hw(JsonObjectConst o)
+{
+    set_text(cpu.name, o["cpu"] | "");
+    set_text(gpu.name, o["gpu"] | "");
 }
 
 void ui_set_lock_clock(bool on)

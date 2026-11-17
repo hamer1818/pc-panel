@@ -102,6 +102,11 @@ def tiles_message(shortcuts) -> dict:
     return {"t": "tiles", "items": items}
 
 
+def hw_message(cpu: str, gpu: str) -> dict:
+    """Kart başlıklarındaki donanım adları (ör. "Ryzen 7 9800X3D", "GeForce RTX 5080")."""
+    return {"t": "hw", "cpu": cpu[:28], "gpu": gpu.removeprefix("NVIDIA ")[:28]}
+
+
 def cfg_message(s) -> dict:
     return {"t": "cfg", "lock_clock": int(s.lock_clock), "lock_min": s.lock_min, "notif_s": s.notif_secs}
 

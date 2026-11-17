@@ -12,8 +12,25 @@ _VIRTUAL_NIC = re.compile(r"^(lo|tailscale\d*|virbr\d*|docker\d*|br-.*|veth.*|vn
 # Disk hızında sayılacak fiziksel diskler (bölümler değil)
 _PHYSICAL_DISK = re.compile(r"^(nvme\d+n\d+|sd[a-z]+|vd[a-z]+|mmcblk\d+)$")
 
-# Panelde gösterilecek bağlama noktaları (bu bilgisayarda: sistem diski ve veri diski)
-DEFAULT_MOUNTS = ("/", "/mnt/veri")
+# Panelde gösterilecek bağlama noktaları (en çok 2; ayar dosyasında [sistem] diskler)
+DEFAULT_MOUNTS = ("/",)
+
+
+def cpu_name() -> str:
+    """/proc/cpuinfo'dan kısa işlemci adı: "AMD Ryzen 7 9800X3D 8-Core Processor" → "Ryzen 7 9800X3D"."""
+    try:
+        with open("/proc/cpuinfo") as f:
+            for line in f:
+                if line.startswith("model name"):
+                    name = line.split(":", 1)[1].strip()
+                    break
+            else:
+                return ""
+    except OSError:
+        return ""
+    name = re.sub(r"\b(AMD|Intel\(R\)|Core\(TM\)|\(R\)|\(TM\)|CPU|Processor)\b", "", name)
+    name = re.sub(r"\b\d+-Core\b|@.*$", "", name)
+    return " ".join(name.split())[:28]
 
 
 class SystemCollector:

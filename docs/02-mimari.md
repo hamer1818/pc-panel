@@ -56,8 +56,9 @@ uv run pc-panel --konsol   # sadece terminalde göster
 
 ### Bağlantı
 - Kart üzerindeki **USB-UART** (CH343) girişi, **921600 baud**, 8N1.
-- Bilgisayar portu `/dev/serial/by-id/usb-1a86_USB_Single_Serial_5B90123287-if00` yolundan açar
-  (`--port` ile değiştirilebilir; bulunamazsa VID:PID `1a86:55d3` ile aranır).
+- Bilgisayar kartı USB kimliğiyle (VID:PID `1a86:55d3`, WCH CH343) bulur ve varsa kalıcı
+  `/dev/serial/by-id/usb-1a86_USB_Single_Serial_<seri>-if00` yolunu kullanır (`--port` ile değiştirilebilir).
+  PlatformIO portu kendisi bulur; bilgisayarda başka seri cihazlar varsa `firmware/*.local.ini` ile sabitlenir.
 - ⚠️ **Port açılınca kart resetlenmesin diye DTR ve RTS açık bırakılır** (pyserial varsayılanı). Deneyde ikisi
   kapatılınca kart yeniden başladı, varsayılanla başlamadı (2026-11-17).
 - Port **özel (exclusive) modda** açılır. Aynı anda yalnızca bir program bağlanabilir: ikinci bir `pc-panel`

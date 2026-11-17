@@ -10,6 +10,7 @@ kartı yeniden başlatıyor (deneyle doğrulandı, bkz. docs/02-mimari.md).
 from __future__ import annotations
 
 import asyncio
+import glob
 import json
 import os
 import queue
@@ -19,8 +20,7 @@ import time
 import serial
 from serial.tools import list_ports
 
-DEFAULT_PORT = "/dev/serial/by-id/usb-1a86_USB_Single_Serial_5B90123287-if00"
-CARD_VID, CARD_PID = 0x1A86, 0x55D3  # WCH CH343
+CARD_VID, CARD_PID = 0x1A86, 0x55D3  # WCH CH343 (kartın USB-UART girişi)
 DEFAULT_BAUD = 921600
 RECONNECT_S = 2.0
 
@@ -28,10 +28,13 @@ RECONNECT_S = 2.0
 def find_port(preferred: str | None) -> str | None:
     if preferred:
         return preferred if os.path.exists(preferred) else None
-    if os.path.exists(DEFAULT_PORT):
-        return DEFAULT_PORT
+    # Kart USB kimliğiyle (VID:PID) bulunur; varsa kalıcı /dev/serial/by-id yolu tercih edilir
+    # (ttyACM numarası takılış sırasına göre değişebilir).
     for p in list_ports.comports():
         if p.vid == CARD_VID and p.pid == CARD_PID:
+            for link in glob.glob("/dev/serial/by-id/*"):
+                if os.path.realpath(link) == os.path.realpath(p.device):
+                    return link
             return p.device
     return None
 

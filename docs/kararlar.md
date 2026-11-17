@@ -11,6 +11,12 @@ Her karar: tarih · karar · düşünülen seçenekler · neden.
   derlenseydi her yeni uygulama için kart yazılımı yeniden yüklenmeliydi.
 - Uygulama ayar dosyasında yalnızca `.desktop` kimliğiyle yazılıyor; ad ve ikon oradan geliyor, ad isteğe göre kısaltılabiliyor.
 
+## 2026-11-17 · Açık kaynak (MIT) ve commit e-postası info@hamza.tr
+- Kullanıcı kararı: GitHub'da public. Depoda gizli bilgi yok (sunucu IP'si ve kişisel ayarlar yalnızca
+  `~/.config/pc-panel/ayarlar.toml`'da). Lisans MIT; üçüncü taraf dosyalar kendi lisanslarıyla (`THIRD_PARTY.md`).
+- Commit geçmişindeki kişisel Gmail adresi `info@hamza.tr` ile değiştirildi (depo henüz hiç push edilmemişti, yani
+  geçmişi yeniden yazmak kimseyi etkilemedi). Bu depo için `git config user.email info@hamza.tr`.
+
 ## 2026-11-17 · İkonlar dur-bekle ile gönderilir; aynı liste gelince kart sayfayı yeniden kurmaz
 - Sorun (kullanıcı fark etti): yeniden bağlanınca yalnızca Steam ikonu kaldı. Kart `apps`/`tiles` ile sayfayı
   kurarken (LVGL kilidi) gelen veri 16 KB seri tamponu taştı; bir ikon bozulunca arkasındakiler de zincirleme
@@ -171,7 +177,7 @@ Kullanıcı yazılımcı; seçtiği dört özellik: 1 Claude Code durumu, 2 uzun
 - Neden: kütüphanenin RGB ekranlar için önerdiği mod. 2 × 800×480×2 B ≈ 1,5 MB PSRAM kullanır (8 MB'tan).
 
 ## 2026-11-17 · Seri port kalıcı yolla seçilir
-- `/dev/serial/by-id/usb-1a86_USB_Single_Serial_5B90123287-if00` (platformio.ini'de `upload_port`/`monitor_port`)
+- `/dev/serial/by-id/usb-1a86_USB_Single_Serial_<seri>-if00` (platformio.ini'de `upload_port`/`monitor_port`)
 - Neden: `ttyACM` numaraları takma sırasına göre değişiyor ve `/dev/ttyACM0` başka bir cihaz.
 
 ## 2026-11-17 · Kart yazılımı: PlatformIO + Arduino çatısı + ESP32_Display_Panel + LVGL 9 *(LVGL kısmı yukarıda 8.4 olarak değişti)*

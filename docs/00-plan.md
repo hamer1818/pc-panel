@@ -192,6 +192,10 @@ Kullanıcı "800 özellik değil, her gün kullanacağım şeyler" dedi; yalnız
 - [ ] **[SEN]** Uygulamalar sayfasında ikonlar düzgün mü, dokununca uygulama açılıyor / öne geliyor mu?
       (İstersen Kısayollar'daki Tarayıcı ve Spotify kutularını ayar dosyasından sil: artık Uygulamalar'da var.)
 
+### Yayın
+- [x] **[CLAUDE]** Açık kaynak hazırlığı: sabit yollar / seri no / donanım adları genelleştirildi, LICENSE (MIT),
+      THIRD_PARTY.md, README; commit e-postası `info@hamza.tr`; GitHub'da public yayın.
+
 ### 7C — Sonra (karar verilecek)
 - [ ] Görev çalıştırıcı kutular (çalışıyor → ✓/✗ ve süre, tehlikeli işlerde onay)
 - [ ] Geliştirme ortamı sayfası: dinlenen localhost portları, docker konteynerleri, adb / tailscale cihazları

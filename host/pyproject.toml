@@ -3,6 +3,7 @@ name = "pc-panel"
 version = "0.1.0"
 description = "PC Panel: bilgisayar durumunu ve medya bilgisini ESP32-S3 ekran kartına gönderen servis"
 requires-python = ">=3.12"
+license = "MIT"
 dependencies = [
     "psutil>=7.0",
     "nvidia-ml-py>=12.0",

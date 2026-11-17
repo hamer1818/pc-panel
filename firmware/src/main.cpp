@@ -21,7 +21,7 @@
 using namespace esp_panel::drivers;
 using namespace esp_panel::board;
 
-#define FW_VERSION "0.10.1"
+#define FW_VERSION "0.11.0"
 #define PROTO_VERSION 1
 #define LINK_BAUD 921600
 #define LINK_TIMEOUT_MS 3000
@@ -136,6 +136,8 @@ static void handle_line(char *line, size_t len)
             Serial.printf("{\"t\":\"icon\",\"i\":%d,\"ok\":0}\n", i);
             // Beklenmeyen boyut: ardından gelecek n bayt satır gibi okunur, JSON olmadığı için atılır
         }
+    } else if (strcmp(t, "hw") == 0) {
+        ui_set_hw(o);
     } else if (strcmp(t, "apps") == 0) {
         ui_set_apps(doc["items"].as<JsonArrayConst>());
     } else if (strcmp(t, "tiles") == 0) {

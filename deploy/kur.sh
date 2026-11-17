@@ -4,6 +4,7 @@
 #   deploy/kur.sh kaldir   → durdur ve kaldır
 set -euo pipefail
 cd "$(dirname "$0")/.."
+KOK="$(pwd)"  # proje klasörü: servis ve fish dosyalarındaki @KOK@ yerine yazılır
 UNIT_DIR="$HOME/.config/systemd/user"
 UNIT=pc-panel.service
 
@@ -38,7 +39,7 @@ fi
 FISH_CONF="${XDG_CONFIG_HOME:-$HOME/.config}/fish/conf.d"
 if command -v fish >/dev/null; then
     mkdir -p "$FISH_CONF"
-    install -m 644 deploy/pc-panel.fish "$FISH_CONF/pc-panel.fish"
+    sed "s#@KOK@#$KOK#g" deploy/pc-panel.fish > "$FISH_CONF/pc-panel.fish"
     echo "fish eklentisi: $FISH_CONF/pc-panel.fish (yeni açılan terminallerde geçerli)"
 fi
 
@@ -48,7 +49,7 @@ if [ -d "$HOME/.claude" ]; then
 fi
 
 mkdir -p "$UNIT_DIR"
-install -m 644 deploy/$UNIT "$UNIT_DIR/$UNIT"
+sed "s#@KOK@#$KOK#g" deploy/$UNIT > "$UNIT_DIR/$UNIT"
 systemctl --user daemon-reload
 systemctl --user enable --now "$UNIT"
 sleep 2

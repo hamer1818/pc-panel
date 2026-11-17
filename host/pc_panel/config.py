@@ -69,6 +69,7 @@ DEFAULT_CMD_EXCLUDE = frozenset({
 class Settings:
     lock_clock: bool = True
     lock_min: int = 10
+    disks: tuple[str, ...] = ("/",)
     notif_on: bool = True
     notif_locked: bool = False
     notif_secs: int = 6
@@ -81,7 +82,7 @@ class Settings:
     claude_min_s: int = 20
     claude_usage: bool = True
     git_on: bool = True
-    git_roots: tuple[str, ...] = ("/mnt/veri/yazilim",)
+    git_roots: tuple[str, ...] = ("~",)
     git_days: int = 7
     cmd_on: bool = True
     cmd_min_s: int = 30
@@ -194,6 +195,14 @@ def parse(data: dict) -> tuple[Settings, list[str]]:
     """TOML sözlüğünden ayarlar; ikinci değer uyarı listesi."""
     warn: list[str] = []
     s = Settings()
+
+    sy = data.get("sistem", {})
+    dl = sy.get("diskler")
+    if dl is not None:
+        if isinstance(dl, list) and dl and all(isinstance(x, str) and x.startswith("/") for x in dl):
+            s.disks = tuple(dl[:2])
+        else:
+            warn.append("sistem.diskler en çok 2 bağlama noktası listesi olmalı, ör. [\"/\", \"/home\"]")
 
     k = data.get("kilit_ekrani", {})
     s.lock_clock = bool(k.get("saat", s.lock_clock))

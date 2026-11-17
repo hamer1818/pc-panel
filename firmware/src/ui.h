@@ -29,6 +29,7 @@ void ui_update_srv(JsonObjectConst o);  // sunucu sağlığı
 void ui_update_cu(JsonObjectConst o);   // Claude kullanımı (hesap başına 5 sa penceresi)
 void ui_update_git(JsonObjectConst o);  // push / commit edilmemiş iş
 // Faz 7E (protokol v1.7): Uygulamalar sayfası
+void ui_set_hw(JsonObjectConst o);       // CPU / GPU adları
 void ui_set_apps(JsonArrayConst items);  // [{"id","ti"}], en çok 15; ikonlar sonra gelir
 void ui_set_app_icon(int index, const uint8_t *rgb565a8, int w, int h);  // veriyi kopyalar
 void ui_set_lock_clock(bool on);          // PC kilitliyken büyük saat ekranı

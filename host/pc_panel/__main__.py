@@ -32,10 +32,10 @@ from .claude import ClaudeTracker, fmt_dur
 from .github import GhError, GitHubWatcher
 from .gitwatch import scan as git_scan, summary_text as git_summary
 from .olay import SOCK_PATH
-from .protocol import (apps_message, cc_message, cfg_message, cu_message, gh_message, git_message, media_message, notif_message,
-                       srv_message, stat_message, tiles_message, vol_message)
+from .protocol import (apps_message, cc_message, cfg_message, cu_message, gh_message, git_message, hw_message,
+                       media_message, notif_message, srv_message, stat_message, tiles_message, vol_message)
 from .servers import ServerWatcher
-from .system import SystemCollector
+from .system import SystemCollector, cpu_name
 from .usage import UsageTracker
 
 HB_TIMEOUT_S = 5.0
@@ -143,6 +143,8 @@ async def serve(args: argparse.Namespace, media: MediaWatcher) -> int:
         if s.shortcuts:  # liste boşsa kart kendi yerleşik kutularını gösterir
             send(tiles_message(s.shortcuts))
         send(cfg_message(s))
+        send(hw_message(cpu_name(), gpu.name or ""))
+        system.mounts = s.disks
         send(cc_message(claude.items()))
         send(dev["gh"])
         for k in ("srv", "cu", "git"):

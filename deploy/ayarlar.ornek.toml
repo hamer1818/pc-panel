@@ -5,6 +5,9 @@
 # Hatalı bir dosya kaydedilirse servis son geçerli ayarlarla devam eder ve hatayı günlüğe yazar:
 #   journalctl --user -u pc-panel -f
 
+[sistem]
+diskler = ["/"]          # Sistem sayfasında gösterilecek en çok 2 bağlama noktası, ör. ["/", "/home"]
+
 [kilit_ekrani]
 saat = true      # PC kilitliyken büyük saat göster (false: ekran hemen kararır)
 sure_dk = 10     # saat bu kadar dakika sonra kararsın (0: hiç kararmasın). Karta dokununca 20 sn yeniden açılır.
@@ -33,7 +36,7 @@ kullanim = true          # her hesabın 5 saatlik penceredeki token kullanımı 
 # Push / commit edilmemiş iş (Geliştirici sayfası, GitHub kutusunun altı). Klasörlerin bir alt seviyesindeki depolar;
 # yalnızca son `gun` gün içinde dokunulanlar sayılır.
 acik = true
-klasorler = ["/mnt/veri/yazilim"]
+klasorler = ["~"]       # ör. ["~/projeler", "/mnt/veri/yazilim"]
 gun = 7
 
 [komut]
@@ -123,10 +126,10 @@ ikon = "terminal"
 uygulama = "org.kde.konsole"
 
 [[kisayol]]
-baslik = "Tarayıcı"
-aciklama = "Zen"
-ikon = "globe"
-uygulama = "userapp-Zen-83YBT3"
+baslik = "GitHub"
+aciklama = "tarayıcıda"
+ikon = "github"
+adres = "https://github.com"
 
 [[kisayol]]
 baslik = "Dosyalar"
