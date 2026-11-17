@@ -125,15 +125,20 @@ Karar verilecek içerik listesi:
 ---
 
 ## Faz 6 — Kalıcı kurulum (her açılışta kendiliğinden çalışsın)
-- [ ] **[CLAUDE]** `deploy/99-pc-panel.rules`: kart her zaman `/dev/pcpanel` adıyla görünsün.
-- [ ] **[CLAUDE]** `deploy/pc-panel.service`: systemd kullanıcı servisi; `deploy/kur.sh` kurulum betiği.
-- [ ] **[SEN]** udev kuralını kur (sudo gerekir):
+- [x] ~~**[CLAUDE]** `deploy/99-pc-panel.rules`: kart her zaman `/dev/pcpanel` adıyla görünsün.~~
+      → Gerek kalmadı: `/dev/serial/by-id/…` yolu zaten kalıcı (bkz. `kararlar.md`). [SEN] udev/sudo adımı da kalktı.
+- [x] **[CLAUDE]** `deploy/pc-panel.service` (systemd kullanıcı servisi) + `deploy/kur.sh` (kur / `kaldir`).
+      `systemd-analyze --user verify` temiz.
+- [x] **[CLAUDE]** Ekran davranışı (kart 0.6.0): PC kilitliyken (`locked`), servis kapanırken (`bye`) ya da 60 sn
+      bağlantı yoksa arka ışık kapanır; karanlıkta dokununca 20 sn açılır (dokunma düğmelere geçmez).
+      Bilgisayarda: KDE kilit sorgusu, SIGTERM/Ctrl+C'de `bye`. Deneme: SIGTERM → çıkış 0, ekran karardı ve
+      yeniden bağlanınca açıldı.
+- [ ] **[SEN]** Elle çalışan `pc-panel` varsa kapat (Ctrl+C), sonra servisi kur:
       ```bash
-      sudo cp deploy/99-pc-panel.rules /etc/udev/rules.d/ && sudo udevadm control --reload && sudo udevadm trigger
+      /mnt/veri/yazilim/esp32-lcd-controller-card/deploy/kur.sh
       ```
-- [ ] **[SEN]** Servisi aç: `systemctl --user enable --now pc-panel`
-- [ ] **[CLAUDE]** Ekran davranışı: bilgisayar kilitlenince/uykuya geçince ekranı karart, açılınca geri getir.
-- [ ] **[SEN]** Bilgisayarı yeniden başlat; panel kendiliğinden geliyor mu?
+- [ ] **[SEN]** Kilit testi: ekranı kilitle (Meta+L) → kart kararmalı; karta dokun → 20 sn açılmalı; kilidi aç → panel geri gelmeli.
+- [ ] **[SEN]** Bilgisayarı yeniden başlat; panel hiçbir şeye dokunmadan geliyor mu? Kısayollar (Terminal vb.) servisten de çalışıyor mu?
 
 **Bitti ölçütü:** yeniden başlatma sonrası hiçbir şeye dokunmadan panel çalışıyor.
 
@@ -157,5 +162,5 @@ Karar verilecek içerik listesi:
 | 3 Protokol | ✅ bitti (2026-11-17) |
 | 4 Arayüz | ✅ bitti (2026-11-17) |
 | 5 Medya | ✅ bitti (2026-11-17); karttan çalar seçimi isteğe bağlı, yapılmadı |
-| 6 Kalıcı kurulum | ⏳ sıradaki |
+| 6 Kalıcı kurulum | ⏳ sürüyor — kullanıcının kurulum ve yeniden başlatma testi bekleniyor |
 | 7 Ekstralar | — |

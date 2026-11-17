@@ -21,7 +21,7 @@
 using namespace esp_panel::drivers;
 using namespace esp_panel::board;
 
-#define FW_VERSION "0.5.0"
+#define FW_VERSION "0.6.0"
 #define PROTO_VERSION 1
 #define LINK_BAUD 921600
 #define LINK_TIMEOUT_MS 3000
@@ -31,6 +31,8 @@ using namespace esp_panel::board;
 #define ART_H 240
 #define ART_BYTES (ART_W * ART_H * 2)
 #define ART_TIMEOUT_MS 2000
+#define IDLE_DARK_MS 60000  // bu kadar süre bağlantı yoksa ekranı karart
+#define WAKE_MS 20000       // karanlıkken dokununca ekran bu kadar açık kalır
 
 static char line_buf[LINE_MAX];
 static size_t line_len = 0;
@@ -45,6 +47,11 @@ static size_t art_need = 0;           // >0 ise ikili alım modundayız
 static size_t art_got = 0;
 static uint32_t art_crc = 0;
 static uint32_t art_deadline = 0;
+
+// Ekran karartma (Faz 6): PC kilitli, servis "bye" dedi ya da uzun süre bağlantı yok
+static Board *g_board = nullptr;
+static bool pc_locked = false;
+static bool pc_bye = false;
 
 // UI'dan (LVGL görevi) ve loop()'tan çağrılabilir; tek printf çağrısı = tek yazma, satırlar karışmaz.
 void link_send_cmd(const char *cmd, int value, bool has_value)
@@ -77,6 +84,10 @@ static void handle_line(char *line, size_t len)
     lvgl_port_lock(-1);
     if (strcmp(t, "stat") == 0) {
         ui_update_stat(o);
+        pc_locked = (doc["locked"] | 0) != 0;
+        pc_bye = false;
+    } else if (strcmp(t, "bye") == 0) {
+        pc_bye = true;  // servis kapanıyor: ekranı hemen karart
     } else if (strcmp(t, "media") == 0) {
         ui_update_media(o);
     } else if (strcmp(t, "vol") == 0) {
@@ -167,6 +178,7 @@ void setup()
     }
 
     Board *board = new Board();
+    g_board = board;
     board->init();
 #if LVGL_PORT_AVOID_TEARING_MODE
     auto lcd = board->getLCD();
@@ -205,6 +217,27 @@ void loop()
     if (now - last_hb >= HEARTBEAT_MS) {
         last_hb = now;
         Serial.printf("{\"t\":\"hb\",\"up\":%lu,\"fw\":\"%s\"}\n", static_cast<unsigned long>(now / 1000), FW_VERSION);
+    }
+
+    // Ekran karartma
+    static bool is_dark = false;
+    static uint32_t wake_until = 0;
+    if (ui_take_wake_request()) {
+        wake_until = now + WAKE_MS;
+    }
+    bool link_idle = last_rx_ms == 0 ? now > IDLE_DARK_MS : now - last_rx_ms > IDLE_DARK_MS;
+    bool want_dark = pc_locked || pc_bye || link_idle;
+    bool dark = want_dark && static_cast<int32_t>(now - wake_until) >= 0;
+    if (dark != is_dark) {
+        is_dark = dark;
+        lvgl_port_lock(-1);
+        ui_set_sleep(dark);
+        lvgl_port_unlock();
+        auto bl = g_board ? g_board->getBacklight() : nullptr;
+        if (bl) {
+            dark ? bl->off() : bl->on();
+        }
+        Serial.printf("# ekran %s\n", dark ? "karartildi" : "acildi");
     }
 
     if (now - last_ui >= 250) {

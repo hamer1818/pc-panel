@@ -82,6 +82,17 @@ uv run pc-panel --konsol   # sadece terminalde göster
 - Bilgisayar: port kaybolursa (kablo çıktı) 2 sn arayla yeniden açmayı dener. 5 sn boyunca karttan `hb` gelmezse
   bunu günlüğe yazar, ama göndermeye devam eder.
 
+### Ekran karartma (v1.3 — Faz 6)
+- `stat` mesajına `locked` (0/1) alanı eklendi (KDE `org.freedesktop.ScreenSaver.GetActive`).
+- Yeni mesaj `{"t":"bye"}`: servis kapanırken (SIGTERM / Ctrl+C) gönderilir; kart ekranı hemen karartır.
+- Kart kuralları için bkz. `kararlar.md` "Ekran karartma kartta karar verilir".
+
+## Kurulum (Faz 6)
+- `deploy/pc-panel.service` → `~/.config/systemd/user/`, `deploy/kur.sh` ile kurulur (`kur.sh kaldir` ile kaldırılır).
+- Servis `host/.venv/bin/pc-panel`'i doğrudan çalıştırır (uv gerekmez).
+- Günlük: `journalctl --user -u pc-panel -f`. Elle çalıştırmak için önce servisi durdurun:
+  `systemctl --user stop pc-panel` (port özel modda açılıyor, aynı anda tek program).
+
 ### Kapak resmi (v1.2 — Faz 5)
 Kapak, satır tabanlı protokolün içinde **tek ikili (binary) blok** olarak gider:
 

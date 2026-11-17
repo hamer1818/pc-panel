@@ -853,3 +853,41 @@ void ui_clear_art()
     lv_obj_add_flag(art_img, LV_OBJ_FLAG_HIDDEN);
     lv_obj_clear_flag(art_note, LV_OBJ_FLAG_HIDDEN);
 }
+
+// ---- Ekran karartma ----
+namespace {
+lv_obj_t *sleep_overlay = nullptr;
+volatile bool wake_requested = false;
+
+void overlay_press_cb(lv_event_t *e)
+{
+    wake_requested = true;  // dokunma burada tükenir, alttaki düğmelere geçmez
+}
+}  // namespace
+
+void ui_set_sleep(bool dark)
+{
+    if (!sleep_overlay) {
+        sleep_overlay = lv_obj_create(lv_layer_top());
+        lv_obj_remove_style_all(sleep_overlay);
+        lv_obj_set_size(sleep_overlay, 800, 480);
+        lv_obj_set_style_bg_color(sleep_overlay, lv_color_black(), 0);
+        lv_obj_set_style_bg_opa(sleep_overlay, LV_OPA_COVER, 0);
+        lv_obj_add_flag(sleep_overlay, LV_OBJ_FLAG_CLICKABLE);
+        lv_obj_add_event_cb(sleep_overlay, overlay_press_cb, LV_EVENT_PRESSED, nullptr);
+    }
+    if (dark) {
+        lv_obj_clear_flag(sleep_overlay, LV_OBJ_FLAG_HIDDEN);
+    } else {
+        lv_obj_add_flag(sleep_overlay, LV_OBJ_FLAG_HIDDEN);
+    }
+}
+
+bool ui_take_wake_request()
+{
+    if (!wake_requested) {
+        return false;
+    }
+    wake_requested = false;
+    return true;
+}

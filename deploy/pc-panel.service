@@ -1,0 +1,23 @@
+# PC Panel — ESP32-S3 ekran kartı servisi (systemd kullanıcı servisi)
+# Kurulum: deploy/kur.sh   ·   Günlük: journalctl --user -u pc-panel -f
+[Unit]
+Description=PC Panel - ESP32-S3 ekran karti servisi
+Documentation=file:///mnt/veri/yazilim/esp32-lcd-controller-card/docs/02-mimari.md
+# Masaüstü oturumu (D-Bus, Wayland, PipeWire) hazır olunca başla, oturum kapanınca dur
+After=graphical-session.target pipewire.service wireplumber.service
+PartOf=graphical-session.target
+# /mnt/veri bağlanmadan başlama
+RequiresMountsFor=/mnt/veri/yazilim/esp32-lcd-controller-card/host
+
+[Service]
+Type=simple
+WorkingDirectory=/mnt/veri/yazilim/esp32-lcd-controller-card/host
+ExecStart=/mnt/veri/yazilim/esp32-lcd-controller-card/host/.venv/bin/pc-panel
+Environment=PYTHONUNBUFFERED=1
+Restart=on-failure
+RestartSec=3
+# Kapanırken karta "bye" gönderip ekranı karartabilsin
+TimeoutStopSec=5
+
+[Install]
+WantedBy=graphical-session.target

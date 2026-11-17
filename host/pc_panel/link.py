@@ -131,6 +131,13 @@ class SerialLink:
         outq.put(line + payload)  # tek parça: araya başka mesaj giremez
         return True
 
+    async def flush(self, timeout: float = 1.0) -> None:
+        """Yazma kuyruğu boşalana kadar (en çok `timeout` sn) bekler."""
+        end = time.monotonic() + timeout
+        while self._outq is not None and not self._outq.empty() and time.monotonic() < end:
+            await asyncio.sleep(0.02)
+        await asyncio.sleep(0.05)  # son satırın kabloya çıkması için
+
     async def maintain(self) -> None:
         """Bağlantıyı açık tutar; kopunca RECONNECT_S arayla yeniden dener."""
         self._loop = asyncio.get_running_loop()

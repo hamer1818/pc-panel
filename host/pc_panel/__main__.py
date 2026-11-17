@@ -14,6 +14,7 @@ from __future__ import annotations
 import argparse
 import asyncio
 import json
+import signal
 import sys
 import time
 
@@ -91,6 +92,7 @@ async def serve(args: argparse.Namespace, media: MediaWatcher) -> int:
             t0 = time.monotonic()
             if link.connected:
                 msg = stat_message(system.sample(), gpu.sample())
+                msg["locked"] = int(bool(await media.screen_locked()))  # kart ekranı karartsın
                 link.send(msg)
                 if args.debug:
                     log(f"→ {json.dumps(msg, ensure_ascii=False)}")
@@ -159,9 +161,22 @@ async def serve(args: argparse.Namespace, media: MediaWatcher) -> int:
             elif not silent:
                 warned = False
 
+    # SIGTERM (systemd durdururken) ve Ctrl+C: karta "bye" gönder ki ekranı hemen karartsın
+    stop = asyncio.Event()
+    loop = asyncio.get_running_loop()
+    for sig in (signal.SIGTERM, signal.SIGINT):
+        loop.add_signal_handler(sig, stop.set)
+
+    tasks = [asyncio.create_task(c) for c in (link.maintain(), producer(), consumer(), watchdog())]
     try:
-        await asyncio.gather(link.maintain(), producer(), consumer(), watchdog())
+        await stop.wait()
+        log("kapanıyor")
+        if link.connected:
+            link.send({"t": "bye"})
+            await link.flush()
     finally:
+        for t in tasks:
+            t.cancel()
         gpu.close()
     return 0
 

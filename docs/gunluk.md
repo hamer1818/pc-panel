@@ -2,6 +2,18 @@
 
 En yeni kayıt en üstte.
 
+## 2026-11-17 — Faz 6: kalıcı kurulum ve ekran karartma
+- Yoklama: systemd kullanıcı ortamında WAYLAND_DISPLAY / DISPLAY / DBUS var; graphical-session.target etkin;
+  `org.freedesktop.ScreenSaver.GetActive` yanıt veriyor (/ScreenSaver); `/mnt/veri` fstab'da.
+- udev kuralı gereksiz bulundu (by-id yolu kalıcı); plandaki sudo adımı kaldırıldı.
+- `deploy/pc-panel.service` + `deploy/kur.sh` yazıldı; `systemd-analyze --user verify` temiz.
+- Bilgisayar: `media.screen_locked()`, `stat.locked`; SIGTERM/SIGINT'te `bye` + yazma kuyruğunu boşaltma (`link.flush`).
+- Kart 0.6.0: kilit / bye / 60 sn bağlantısızlık → arka ışık kapalı + üst katmanda dokunma yakalayan siyah perde;
+  dokununca 20 sn açık. RAM %7,7, flash %15,5.
+- Deneme: 8 sn çalıştırıp SIGTERM → "kapanıyor", çıkış kodu 0. Yeniden açınca kart `# ekran acildi` yazdı
+  (yani kararmıştı). Her saniye `locked: 0` gönderildi. Kilit testi kullanıcıda: Claude ekranı kilitlemedi.
+- **Sıradaki:** kullanıcı `deploy/kur.sh` ile servisi kuracak, kilit testini ve yeniden başlatma testini yapacak.
+
 ## 2026-11-17 — Faz 5: kapak resmi
 - Protokol v1.2 yazıldı (`02-mimari.md` "Kapak resmi"): başlık satırı + 115.200 bayt RGB565 + CRC-32, kart yanıtı.
 - Bilgisayar: `art.py` (https / file:// okuma, ortadan kare kırpma, 240×240, RGB565 LE), Pillow 13.0.0 eklendi.

@@ -11,6 +11,24 @@ Her karar: tarih · karar · düşünülen seçenekler · neden.
   - Diğer seçenekler: koyu "oyuncu" (neon) · aydınlık.
 - **Kısayollar sayfası:** olacak (Faz 7'ye bırakılmadı).
 
+## 2026-11-17 · udev kuralı yazılmadı; kalıcı yol olarak /dev/serial/by-id kullanılıyor
+- Seçenekler: `99-pc-panel.rules` ile `/dev/pcpanel` · udev'in zaten oluşturduğu by-id yolu
+- Neden: by-id yolu kartın seri numarasını içeriyor ve her takışta aynı kalıyor. Ek kural sudo gerektirirdi ve
+  yeni bir şey kazandırmıyordu.
+
+## 2026-11-17 · Servis: systemd kullanıcı servisi, graphical-session.target'a bağlı
+- Seçenekler: kullanıcı servisi · sistem servisi · KDE otomatik başlatma (.desktop)
+- Neden: medya (MPRIS), ses (wpctl), kilit sorgusu ve kısayollar kullanıcının oturumunu (D-Bus, Wayland) istiyor.
+  Bu yüzden sistem servisi olamaz. systemd kullanıcı ortamında `WAYLAND_DISPLAY`, `DISPLAY` ve `DBUS_SESSION_BUS_ADDRESS` var
+  (Plasma systemd ile başlıyor). Çöküşte 3 sn sonra yeniden başlıyor; günlük `journalctl --user -u pc-panel`.
+
+## 2026-11-17 · Ekran karartma kartta karar verilir
+- Kural: `locked` (KDE kilidi) ya da `bye` (servis kapanıyor) ya da 60 sn bağlantı yok → arka ışık kapalı.
+  Karanlıkta dokunma, ekranı 20 sn açar ve düğmelere geçmez (üst katmanda siyah perde).
+- Neden: bilgisayar uykuya geçince ya da kapanınca servis mesaj gönderemeyebilir. Kartın kendi zaman aşımı her
+  durumu kapsıyor; `bye` ise düzgün kapanışta beklemeden karartıyor. Arka ışık bu kartta yalnızca aç/kapa
+  (CH422G), kısma yok.
+
 ## 2026-11-17 · Kapak resmi: aynı seri hatta ikili blok, 240×240 RGB565, CRC-32
 - Seçenekler: base64 JSON içinde (≈%33 büyür, ayrıştırması pahalı) · ikili blok · JPEG gönderip kartta açmak
   (TJpgDec; daha az veri ama ek kütüphane ve işlemci yükü)

@@ -55,6 +55,12 @@ class MediaWatcher:
             return None
         return reply
 
+    async def screen_locked(self) -> bool | None:
+        """KDE ekran kilidi açık mı? (org.freedesktop.ScreenSaver.GetActive) Bilinmiyorsa None."""
+        r = await self._call(destination="org.freedesktop.ScreenSaver", path="/ScreenSaver",
+                             interface="org.freedesktop.ScreenSaver", member="GetActive")
+        return bool(r.body[0]) if r else None
+
     async def _list_players(self) -> list[str]:
         r = await self._call(destination="org.freedesktop.DBus", path="/org/freedesktop/DBus",
                              interface="org.freedesktop.DBus", member="ListNames")
