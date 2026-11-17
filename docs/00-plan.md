@@ -65,11 +65,17 @@ Amaç: karta gönderilecek bütün bilgileri bilgisayarda doğru toplamak.
 ## Faz 3 — İletişim protokolü ve bağlantı
 Amaç: bilgisayar ile kart arasında güvenilir iki yönlü bağlantı.
 
-- [ ] **[CLAUDE]** Protokolü `02-mimari.md`'ye yaz (mesaj tipleri, alanlar, hızlar).
-- [ ] **[CLAUDE]** Bilgisayar tarafı: seri porta yazma, karttan gelen komutları dinleme, kart çıkarılıp takılınca yeniden bağlanma.
-- [ ] **[CLAUDE]** Kart tarafı: mesajları ayrıştırma (ArduinoJson), "bağlantı yok" durumu, kalp atışı (heartbeat).
-- [ ] **[CLAUDE]** Geçici basit ekran: gelen değerleri düz yazı olarak göster, bir düğme ile oynat/durdur gönder.
-- [ ] **[SEN]** Test: kabloyu çıkar-tak, servisi kapat-aç; ekran "bağlantı yok" deyip sonra kendini toparlıyor mu?
+- [x] **[CLAUDE]** Protokolü `02-mimari.md`'ye yaz → protokol v1, 921600 baud, satır başına bir JSON.
+- [x] **[CLAUDE]** Bilgisayar tarafı (`pc_panel/link.py`, `protocol.py`, servis modu): seri porta yazma, komut dinleme,
+      2 sn arayla yeniden bağlanma; `uv run pc-panel` (+ `--debug`).
+- [x] **[CLAUDE]** Kart tarafı (`firmware/src/main.cpp`): ArduinoJson 7.4.3 ile ayrıştırma, `hello` + 1 sn kalp atışı,
+      3 sn mesaj gelmezse "NO LINK".
+- [x] **[CLAUDE]** Geçici ekran (`firmware/src/ui.cpp`): sistem değerleri çubuklarla, medya bilgisi, ⏮ ⏯ ⏭ ve ±10 sn düğmeleri.
+      Türkçe harfler geçici olarak ASCII'ye çevriliyor (yazı tipi Faz 4'te).
+- [x] **[CLAUDE]** Uçtan uca deneme: `hello`, kalp atışı, `stat`/`media` akışı çalışıyor; karttan `next` komutu Spotify'da uygulandı.
+- [x] **[SEN]** Test: servisi kapat-aç → çalışıyor.
+- [ ] **[SEN]** Test: kabloyu çıkar-tak → henüz yapılmadı (logda kopma/yeniden bağlanma satırı yok).
+- [x] **[SEN]** Karttaki bütün düğmeleri dene: ⏮ ⏯ ⏭, −10 sn, +10 sn → hepsi "tamam" (log 16:02:49–16:02:56).
 
 **Bitti ölçütü:** değerler karta akıyor, düğmeye basınca müzik duruyor/başlıyor, kopma sonrası kendiliğinden bağlanıyor.
 

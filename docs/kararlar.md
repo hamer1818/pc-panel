@@ -43,6 +43,26 @@ Her karar: tarih · karar · düşünülen seçenekler · neden.
 - Seçenekler: pipx · pacman paketi (`platformio-core`) · ayrı venv
 - Neden: sudo gerektirmez, PlatformIO'nun kendi standart yolu; pipx sistemde yoktu.
 
+## 2026-11-17 · Seri port açılırken DTR/RTS açık bırakılır (kart resetlenmesin)
+- Deney: pyserial varsayılanı (DTR=RTS=açık) ile port açılınca kart **resetlenmedi**; ikisi kapatılınca **resetlendi**.
+- Karar: `link.py` portu varsayılan ayarlarla açar. Kartı bilerek resetlemek gerekirse RTS kısa süre kapatılıp açılır.
+
+## 2026-11-17 · Seri port özel (exclusive) modda açılır
+- Sorun: aynı anda iki servis kopyası çalışınca ikisi de portu okudu ve bağlantı her birkaç saniyede koptu.
+- Seçenekler: port kilidi (`exclusive=True`) · ayrı bir "tek kopya" kilit dosyası · ikisi birden
+- Neden: port kilidi seri monitör gibi başka programlara karşı da korur ve ek dosya gerektirmez.
+
+## 2026-11-17 · Bağlantı hızı 921600 baud, kart günlükleri aynı hattan
+- Neden: `stat`/`media` için 115200 bile yeterli, ama Faz 5'teki 80 KB'lık kapak resmi 921600'de ≈1 sn sürer.
+  Kütüphane günlükleri de aynı UART'tan geliyor; `{` ile başlamayan satırlar günlük sayılıyor, ayrı kanal gerekmedi.
+
+## 2026-11-17 · Kartın kendi mesajları elle `printf` ile, gelenler ArduinoJson 7 ile
+- Neden: giden mesajlar küçük ve sabit biçimli, tek `printf` = tek yazma, satırlar karışmıyor; gelenler değişken.
+
+## 2026-11-17 · Türkçe harfler Faz 4'e kadar ASCII'ye çevrilir
+- Neden: LVGL'nin hazır Montserrat yazı tiplerinde ç/ğ/ı/ö/ş/ü yok. Faz 4'te Türkçe glifli yazı tipi üretilecek;
+  `ui.cpp` içindeki `translit` o zaman kaldırılacak.
+
 ## 2026-11-17 · D-Bus kütüphanesi: dbus-fast (dbus-next yerine)
 - Seçenekler: dbus-next · dbus-fast · dbus-python (C, sistem paketi)
 - Neden: dbus-next 2021'den beri güncellenmiyor; dbus-fast onun bakımı süren, aynı API'li devamı, saf Python

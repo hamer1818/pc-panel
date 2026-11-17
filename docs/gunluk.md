@@ -2,6 +2,31 @@
 
 En yeni kayıt en üstte.
 
+## 2026-11-17 — Faz 3: protokol ve iki yönlü bağlantı
+- Faz 2 commit'lendi (`b264911`).
+- Reset deneyi: pyserial varsayılan (DTR/RTS açık) ile açınca kart resetlenmiyor, ikisi kapalıyken resetleniyor
+  → varsayılan kullanılıyor (bkz. `kararlar.md`).
+- Protokol v1 yazıldı (`02-mimari.md`): 921600 baud, satır başına JSON; `stat` ve `media` mesajları bilgisayardan
+  karta, `hello`, `hb` ve `cmd` karttan bilgisayara.
+- Bilgisayar: `protocol.py`, `link.py` eklendi; varsayılan mod artık servis. `pyserial` 3.5 eklendi.
+- Kart: yazılım 0.3.0; ArduinoJson 7.4.3; `ui.cpp` geçici ekranı; seri RX tamponu 16 KB. Derleme RAM %7,6,
+  flash %12,5.
+- Uçtan uca deneme (`--debug`, 15 sn): kart günlükleri, `hello`, kalp atışı ve 1 sn'lik `stat`/`media` akışı
+  sorunsuz. Kullanıcı deneme sırasında karttaki ⏭ düğmesine bastı → `karttan komut: next → tamam`,
+  Spotify sonraki şarkıya geçti, ekran hemen güncellendi.
+- **Hata ve düzeltme:** Claude servisi arka planda çalıştırıyordu. Kullanıcı da kendi terminalinden ikinci bir
+  kopya açınca iki süreç aynı portu okudu ve 1–5 sn arayla sürekli "bağlantı koptu / bağlandı" oldu (iki logda da
+  aynı saatlerde). pyserial iki okuyucu olunca `SerialException` veriyor. Çözüm: `link.py` portu `exclusive=True`
+  ile açıyor (TIOCEXCL + flock). İkinci kopya artık bir kez "port başka bir program tarafından kullanılıyor"
+  yazıp bekliyor. Deneyle doğrulandı: ilk kopya 12 sn kopmadan bağlı kaldı.
+  Not: `pio device monitor` açıkken servis bağlanamaz (ve tersi). Bu artık beklenen davranış.
+- Claude'un arka plandaki servisi durduruldu. Servisi bundan sonra kullanıcı kendi terminalinde çalıştırıyor
+  (Claude Code terminal panelindeki sekmeye komut yazılamadı).
+- Kullanıcı testi (servis kendi terminalinde, 16:02): tek kopya, kopma yok. Karttaki düğmelerin hepsi çalıştı:
+  play_pause ×2, next ×2, prev, seek_rel +10, seek_rel −10 → hepsi "tamam". Servisi Ctrl+C ile kapatıp açma da sorunsuz.
+- Kabloyu çıkar-tak testi henüz yapılmadı. Yeniden bağlanma kodu, iki kopyanın port kavgasında defalarca çalıştı;
+  ama aygıt dosyasının tamamen kaybolup geri gelmesi ayrıca denenmedi.
+
 ## 2026-11-17 — Faz 2: bilgisayar servisi (veri toplama)
 - Faz 1 commit'lendi (`962731b`).
 - Yoklama: `k10temp` (Tctl, Tccd1), 2× NVMe sıcaklığı, RAM (spd5118) sıcaklığı mevcut; psutil fan bulamıyor.
