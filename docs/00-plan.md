@@ -28,15 +28,16 @@ Amaç: proje klasörü, araçlar ve kartın bilgisayarda görünmesi.
 ## Faz 1 — Kartı ayağa kaldırma (ekran + dokunmatik)
 Amaç: kendi yazılımımızla ekrana bir şey çizmek ve dokunmayı okumak.
 
-- [ ] **[CLAUDE]** Fabrika yazılımının yedeğini al (`esptool read-flash`, 16 MB → `yedek/` klasörü, git dışı),
-      gerekirse geri yüklenebilsin.
-- [ ] **[CLAUDE]** `firmware/` altında PlatformIO projesi aç: ESP32-S3, 16 MB flash, 8 MB OPI PSRAM ayarları.
-- [ ] **[CLAUDE]** `ESP32_Display_Panel` + LVGL 9 ekle; Waveshare 4.3 ayarlarını (ST7262 RGB ekran, GT911 dokunmatik, CH422G genişletici) yap.
-- [ ] **[CLAUDE]** Test ekranı: yazı, renk çubukları, dokunulan noktada imleç, FPS sayacı.
-- [ ] **[CLAUDE]** Derle ve karta yükle.
-- [ ] **[SEN]** Yükleme takılırsa: **BOOT** tuşuna basılı tut → **RESET**'e bas-bırak → BOOT'u bırak.
-- [ ] **[SEN]** Ekranı kontrol et ve bana söyle (ya da fotoğrafını at): renkler doğru mu, kayma/titreme var mı, dokunduğun yer ile imleç aynı mı?
-- [ ] **[CLAUDE]** Sorun varsa ekran zamanlamalarını / dokunmatik eksenlerini düzelt; bulguları `01-donanim.md`'ye yaz.
+- [x] **[CLAUDE]** Fabrika yazılımının yedeğini al → `yedek/fabrika-16MB.bin` (+ `.sha256`), geri yükleme komutu `01-donanim.md`'de.
+- [x] **[CLAUDE]** `firmware/` altında PlatformIO projesi aç: ESP32-S3, 16 MB flash, 8 MB OPI PSRAM ayarları.
+- [x] **[CLAUDE]** `ESP32_Display_Panel` v1.0.4 + LVGL **8.4** ekle (9 yerine; bkz. `kararlar.md`); hazır kart tanımı
+      `BOARD_WAVESHARE_ESP32_S3_TOUCH_LCD_4_3`, yırtılma önleme modu 3.
+- [x] **[CLAUDE]** Test ekranı: başlık/sürümler, renk çubukları, gri geçiş, kenar çerçevesi, dokunma imleci + koordinat,
+      sayaçlı düğme, dönen yay, çalışma süresi, FPS/CPU göstergesi (`firmware/src/main.cpp`).
+- [x] **[CLAUDE]** Derle ve karta yükle → başarılı, açılış logunda hata yok.
+- [x] **[SEN]** Yükleme takılırsa BOOT tuşu → gerek kalmadı, otomatik yükleniyor.
+- [x] **[SEN]** Ekranı kontrol et → "hepsi düzgün": renkler, gri geçiş, kenarlar, dokunmatik (köşeler dahil), düğme, akıcılık.
+- [x] **[CLAUDE]** Sorun varsa ekran zamanlamalarını / dokunmatik eksenlerini düzelt → gerek kalmadı, varsayılan kart tanımı doğru.
 
 **Bitti ölçütü:** ekran düzgün, dokunmatik doğru noktada, 5 dakika titremesiz çalışıyor.
 
@@ -126,8 +127,8 @@ Karar verilecek içerik listesi:
 | Faz | Durum |
 |-----|-------|
 | 0 Hazırlık | ✅ bitti (2026-11-17) |
-| 1 Ekran + dokunmatik | ⏳ sıradaki |
-| 2 PC servisi | — |
+| 1 Ekran + dokunmatik | ✅ bitti (2026-11-17) |
+| 2 PC servisi | ⏳ sıradaki |
 | 3 Protokol | — |
 | 4 Arayüz | — |
 | 5 Medya | — |

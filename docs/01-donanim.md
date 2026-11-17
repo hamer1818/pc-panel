@@ -36,6 +36,20 @@
 - I2C taraması: `0x5D` → **GT911 dokunmatik (doğrulandı)**; `0x20–0x27` ve `0x30–0x3F` → **CH422G**
   (bu çip birden çok adreste yanıt verir).
 
+**2026-11-17 (kendi yazılımımızla ilk açılış):**
+- ESP32_Display_Panel kart tanımı `BOARD_WAVESHARE_ESP32_S3_TOUCH_LCD_4_3` sorunsuz çalıştı (4.3 ve 4.3B
+  tanımları kütüphanede isim dışında birebir aynı). Ekran: ST7262, RGB565 16 bit, 16 MHz PCLK.
+- Pinler (kütüphanedeki tanımdan): RGB HSYNC 46, VSYNC 3, DE 5, PCLK 7; veri 14,38,18,17,10,39,0,45,48,47,21,1,2,42,41,40.
+  I2C SDA 8 / SCL 9 (dokunmatik + CH422G ortak), dokunmatik INT 4. Arka ışık CH422G EXIO2 (sadece aç/kapa).
+- GT911 açılışta `Unable to initialize the I2C address` uyarısı veriyor ama TouchPad_ID "911", config v67 okunuyor
+  → zararsız (reset pini CH422G üzerinden olduğu için adres seçimi yapılamıyor, varsayılan 0x5D kullanılıyor).
+- Yırtılma önleme modu 3 açıkken boş bellek: PSRAM ≈ 5981 KB, dahili SRAM ≈ 277 KB.
+
+**Fabrika yazılımına geri dönmek için** (yedek: `yedek/fabrika-16MB.bin`, git dışı):
+```bash
+~/.platformio/penv/bin/esptool --port /dev/serial/by-id/usb-1a86_USB_Single_Serial_5B90123287-if00 -b 921600 write-flash 0 yedek/fabrika-16MB.bin
+```
+
 **Takma notu:** İlk denemede kart yanlış girişe takılıydı. USB tanıma yarıda kaldı: çekirdek logunda
 sadece "new full-speed USB device" satırı çıktı. "USB-UART" girişine takınca hemen tanındı.
 

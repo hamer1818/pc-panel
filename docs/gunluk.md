@@ -2,6 +2,19 @@
 
 En yeni kayıt en üstte.
 
+## 2026-11-17 — Faz 1: ilk kendi yazılımımız karta yüklendi
+- Faz 0 commit'lendi (`cbdcc48`).
+- Fabrika yazılımı yedeklendi: 16 MB, 203 sn, 921600 baud → `yedek/fabrika-16MB.bin` (ilk bayt 0xE9, geçerli imaj).
+- Kütüphane araştırması: ESP32_Display_Panel v1.0.4 (en son) yalnızca LVGL v8 portu ve PlatformIO örneği içeriyor
+  → LVGL 8.4 seçildi. Örneğin test edilmiş sürüm seti (pioarduino 53.03.11 / Arduino 3.1.1-h) sabitlendi.
+- `firmware/` oluşturuldu: örnekten `lvgl_v8_port.*`, `lv_conf.h`, `esp_*_conf.h` alındı; kart dosyası
+  `boards/waveshare_esp32s3_touch_lcd_43.json`; yırtılma önleme modu 3; test ekranı `src/main.cpp`.
+- İlk derleme 96 sn (platform indirmeleri dahil). RAM %6,9, flash %11,7 (6,5 MB uygulama bölümünden).
+- Yükleme 18 sn, BOOT tuşuna gerek yok. Açılış logu temiz; GT911 adres uyarısı zararsız (bkz. `01-donanim.md`).
+- Kullanıcı kontrolü: **hepsi düzgün** — renk sırası doğru (R/B karışıklığı yok), gri geçiş, dört kenar,
+  dokunmatik eksenleri ve köşeler, düğme sayacı, dönen yay akıcı. Ekran ayarlarında değişiklik gerekmedi.
+- **Faz 1 tamamlandı.** Sıradaki: Faz 2 — bilgisayar servisi (`host/`, sistem + GPU + MPRIS verileri, konsol modu).
+
 ## 2026-11-17 — Faz 0 tamamlandı: kart tanındı
 - Kullanıcı kartı yeniden taktı → CH343 `1a86:55d3` olarak tanındı, `/dev/ttyACM1` oluştu.
   (`/dev/ttyACM0` = başka cihaz, Allwinner; karıştırma.)
