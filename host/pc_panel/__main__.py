@@ -17,15 +17,16 @@ import json
 import sys
 import time
 
+from . import audio, shortcuts
 from .console import render
 from .gpu import GpuCollector
 from .link import DEFAULT_BAUD, SerialLink
 from .media import MediaWatcher
-from .protocol import media_message, stat_message
+from .protocol import media_message, stat_message, vol_message
 from .system import SystemCollector
 
 HB_TIMEOUT_S = 5.0
-CARD_COMMANDS = {"play_pause", "play", "pause", "next", "prev", "seek_rel", "seek_abs"}
+MEDIA_COMMANDS = {"play_pause", "play", "pause", "next", "prev", "seek_rel", "seek_abs"}
 
 
 def log(msg: str) -> None:
@@ -49,6 +50,12 @@ async def serve(args: argparse.Namespace, media: MediaWatcher) -> int:
         if args.debug:
             log(f"→ {json.dumps(msg, ensure_ascii=False)}")
 
+    async def send_vol() -> None:
+        msg = vol_message(await audio.state())
+        link.send(msg)
+        if args.debug:
+            log(f"→ {json.dumps(msg, ensure_ascii=False)}")
+
     async def producer() -> None:
         await asyncio.sleep(1)  # hız hesapları için ilk aralık
         while True:
@@ -59,6 +66,7 @@ async def serve(args: argparse.Namespace, media: MediaWatcher) -> int:
                 if args.debug:
                     log(f"→ {json.dumps(msg, ensure_ascii=False)}")
                 await send_media()
+                await send_vol()
             else:
                 system.sample()  # hız sayaçları güncel kalsın
             await asyncio.sleep(max(0.05, args.aralik - (time.monotonic() - t0)))
@@ -85,13 +93,21 @@ async def serve(args: argparse.Namespace, media: MediaWatcher) -> int:
                     log(f"kart: kalp atışı, açık {msg.get('up')} sn")
             elif kind == "cmd":
                 cmd, val = msg.get("c"), msg.get("v")
-                if cmd in CARD_COMMANDS:
-                    ok = await media.command(cmd, float(val) if val is not None else None)
+                if cmd in MEDIA_COMMANDS:
+                    ok = await media.command(cmd, float(val) if isinstance(val, (int, float)) else None)
                     log(f"karttan komut: {cmd}{'' if val is None else ' ' + str(val)} → {'tamam' if ok else 'başarısız'}")
                     await asyncio.sleep(0.15)  # çalar durumunu güncellesin
                     await send_media()     # ekran beklemeden güncellensin
+                elif cmd == "vol_set" and isinstance(val, (int, float)):
+                    ok = await audio.set_volume(float(val))
+                    log(f"karttan komut: ses %{val:.0f} → {'tamam' if ok else 'başarısız'}")
+                    await send_vol()
+                elif cmd == "shortcut" and msg.get("id") in shortcuts.ALL_IDS:
+                    ok = await shortcuts.run(msg["id"])
+                    log(f"karttan kısayol: {msg['id']} → {'tamam' if ok else 'başarısız'}")
+                    await send_vol()       # mikrofon / sessiz durumu hemen yansısın
                 else:
-                    log(f"bilinmeyen komut: {msg}")
+                    log(f"bilinmeyen ya da izin verilmeyen komut: {msg}")
 
     async def watchdog() -> None:
         warned = False

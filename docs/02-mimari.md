@@ -43,7 +43,7 @@ uv run pc-panel --debug    # servis + bütün trafik ve kart günlükleri
 uv run pc-panel --konsol   # sadece terminalde göster
 ```
 
-## Protokol (v1 — Faz 3)
+## Protokol (v1 — Faz 3, v1.1 eklemeleri — Faz 4)
 
 ### Bağlantı
 - Kart üzerindeki **USB-UART** (CH343) girişi, **921600 baud**, 8N1.
@@ -60,7 +60,8 @@ uv run pc-panel --konsol   # sadece terminalde göster
 ### Bilgisayar → kart
 | Tip | Ne zaman | Alanlar |
 |-----|----------|---------|
-| `stat` | her 1 sn | `cpu` %, `cpu_t` °C, `cpu_mhz`, `gpu` %, `gpu_t` °C, `gpu_w` W, `gpu_wmax` W, `vram` MB, `vram_tot` MB, `ram` MB, `ram_tot` MB, `disks` `[{"m":"/","p":82.7}]`, `net_dn` / `net_up` B/s, `dsk_r` / `dsk_w` B/s, `up` sn |
+| `stat` | her 1 sn | `cpu` %, `cpu_t` °C, `cpu_mhz`, `gpu` %, `gpu_t` °C, `gpu_w` W, `gpu_wmax` W, `vram` MB, `vram_tot` MB, `ram` MB, `ram_tot` MB, `disks` `[{"m":"/","p":82.7}]`, `net_dn` / `net_up` B/s, `dsk_r` / `dsk_w` B/s, `up` sn, **v1.1:** `cpu_max` en yoğun çekirdek %, `gpu_fan` %, `swap` %, `clock` "16:09", `date` "17 Kasım Pazartesi" |
+| `vol` | her 1 sn (**v1.1**) | `v` sistem sesi % (0–150), `mute` 0/1, `mic` mikrofon sesi %, `mic_mute` 0/1 |
 | `media` | her 1 sn | `st` (`play`/`pause`/`stop`/`none`), `ti` başlık, `ar` sanatçı, `al` albüm, `pl` çalar adı, `len` sn, `pos` sn, `can` `{"pp":1,"nx":1,"pv":1,"sk":1}` |
 
 Örnek:
@@ -74,7 +75,7 @@ uv run pc-panel --konsol   # sadece terminalde göster
 |-----|----------|---------|
 | `hello` | açılışta | `fw` yazılım sürümü, `proto` protokol sürümü (1) |
 | `hb` | her 1 sn | `up` kartın çalışma süresi (sn) |
-| `cmd` | dokununca | `c`: `play_pause` / `next` / `prev` / `seek_rel` (+ `v` sn) / `seek_abs` (+ `v` sn) |
+| `cmd` | dokununca | `c`: `play_pause` / `next` / `prev` / `seek_rel` (+ `v` sn) / `seek_abs` (+ `v` sn) / **v1.1:** `vol_set` (+ `v` %) / `shortcut` (+ `id`: `lock`, `mic`, `screenshot`, `mute`, `terminal`, `browser`, `files`, `spotify`) |
 
 ### Bağlantı durumu
 - Kart: 3 sn boyunca geçerli bir mesaj gelmezse ekranda "bağlantı yok" gösterir.
@@ -82,5 +83,9 @@ uv run pc-panel --konsol   # sadece terminalde göster
   bunu günlüğe yazar, ama göndermeye devam eder.
 
 ### Sonra eklenecekler
-- `vol` (Faz 5): sistem sesi ve sessiz durumu.
 - `art` (Faz 5): kapak resmi. Bir başlık satırı gelir, ardından ikili RGB565 veri (200×200 = 80.000 bayt).
+
+### Kısayollar güvenliği
+Kart yalnızca bir **kısayol kimliği** (`id`) gönderir. Bilgisayar bu kimliği `pc_panel/shortcuts.py` içindeki sabit
+bir listeyle eşleştirir ve oradaki komutu çalıştırır. Karttan komut satırı ya da serbest metin çalıştırılamaz;
+listede olmayan bir kimlik yok sayılır.

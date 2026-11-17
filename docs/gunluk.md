@@ -2,6 +2,21 @@
 
 En yeni kayıt en üstte.
 
+## 2026-11-17 — Faz 4: tasarım onaylandı, LVGL'ye aktarıldı (yazı tipleri bekliyor)
+- Kullanıcı taslak v1'i olduğu gibi onayladı.
+- Yoklama: node 26 / npm var. Varsayılan tarayıcı Zen (`userapp-Zen-83YBT3.desktop`); konsole, dolphin, spectacle,
+  spotify, kstart, wpctl kurulu. Sistem sesi %95, mikrofon %100.
+- `npx --yes lv_font_conv` çalıştırılamadı: otomatik npm paket kurulumu güvenlik kuralına takıldı.
+  → Kullanıcıdan kurulum onayı istenecek. Betik `tools/node` altına yerel kurulum bekliyor (git dışı).
+- Kaynak yazı tipleri LVGL deposundan `firmware/fonts/kaynak/` klasörüne kopyalandı: Montserrat-Medium (OFL),
+  FontAwesome 5 (Free). Taslaktaki kalın Montserrat yerine tek ağırlık (Medium) kullanılacak.
+- Bilgisayar: `audio.py` (wpctl get/set, sessiz/mikrofon aç-kapa), `shortcuts.py` (sabit kimlik → komut listesi;
+  karttan serbest komut çalıştırılamaz), protokol v1.1 (`docs/02-mimari.md`).
+- Kart: `ui.cpp` baştan yazıldı (Sistem / Medya / Kısayollar, tileview), `ui_fonts.h` (Türkçe yazı tipi yoksa
+  hazır Montserrat'a düşer), yazılım 0.4.0. Yedek yazı tipiyle hatasız derlendi: RAM %7,7, flash %13,9.
+  Karta henüz yüklenmedi: Türkçe yazı tipi olmadan sabit etiketlerde (Sıcaklık, yük…) harf eksik çıkar.
+- **Sıradaki:** lv_font_conv kurulumu → yazı tiplerini üret → derle, yükle, dene.
+
 ## 2026-11-17 — Faz 4: tercihler ve tasarım taslağı v1
 - Kullanıcı tercihleri alındı (`kararlar.md`): Sistem sayfasında her şey; kaydırmalı sayfalar; koyu, sade tema;
   Kısayollar sayfası olacak.

@@ -15,3 +15,6 @@ __pycache__/
 
 # Fabrika yazılımı yedeği (büyük ikili dosya)
 yedek/
+
+# Yazı tipi dönüştürücüsünün yerel npm kurulumu
+firmware/tools/node/

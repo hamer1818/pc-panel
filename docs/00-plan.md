@@ -88,8 +88,16 @@ Amaç: panelin son görünümüne karar verip LVGL ile yapmak.
       Kısayollar sayfası olacak (ayrıntı: `kararlar.md`).
 - [x] **[CLAUDE]** 800×480 ölçüsünde tıklanabilir bir tasarım taslağı (HTML) hazırla → `docs/tasarim/taslak-v1.html`
       (Sistem, Medya, Kısayollar; sürükleyerek / ← → ile sayfa değişimi; örnek canlı veri).
-- [ ] **[SEN]** Taslağı incele, değişiklik iste; **onay ver**.
-- [ ] **[CLAUDE]** Onaylanan tasarımı LVGL'ye aktar: sayfalar arası kaydırma, göstergeler, son 60 saniyelik grafikler, yazı tipleri (Türkçe karakterli).
+- [x] **[SEN]** Taslağı incele, değişiklik iste; **onay ver** → taslak v1 olduğu gibi onaylandı.
+- [x] **[CLAUDE]** Onaylanan tasarımı LVGL'ye aktar (`firmware/src/ui.cpp`, yazılım 0.4.0): tileview ile 3 sayfa,
+      yay göstergeler, 60 sn grafikler, ilerleme ve ses kaydırıcıları, 8 kısayol kutusu, bildirim balonu.
+      Yedek yazı tipiyle hatasız derlendi.
+- [x] **[CLAUDE]** Protokol v1.1 + bilgisayar tarafı: saat/tarih, `cpu_max`, `gpu_fan`, `swap`, `vol` mesajı;
+      `vol_set` ve `shortcut` komutları (`audio.py`, `shortcuts.py`). Ses ve kısayollar Faz 5'ten öne alındı.
+- [x] **[CLAUDE]** Yazı tipi üretme betiği: `firmware/tools/fontlari_uret.sh` (Montserrat + Türkçe + ikonlar, 12–30 px + 40 px ikon).
+- [ ] **[SEN]** Yazı tipi dönüştürücüsünü kur ya da Claude'un kurmasına izin ver:
+      `cd firmware && npm install --prefix tools/node lv_font_conv@1.5.2`
+- [ ] **[CLAUDE]** Yazı tiplerini üret, `PC_PANEL_TR_FONTS=1` ile derle, karta yükle, uçtan uca dene.
 - [ ] **[SEN]** Gerçek ekranda okunabilirlik, düğme büyüklüğü, akıcılık kontrolü.
 
 Karar verilecek içerik listesi:

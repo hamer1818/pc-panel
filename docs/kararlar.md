@@ -11,6 +11,20 @@ Her karar: tarih · karar · düşünülen seçenekler · neden.
   - Diğer seçenekler: koyu "oyuncu" (neon) · aydınlık.
 - **Kısayollar sayfası:** olacak (Faz 7'ye bırakılmadı).
 
+## 2026-11-17 · Sistem sesi ve kısayollar Faz 5 yerine Faz 4'te
+- Neden: onaylanan tasarımda ses kaydırıcısı ve kısayol kutuları var. Çalışmayan düğme bırakmak test etmeyi
+  zorlaştırırdı, iş de küçük (`wpctl` + sabit komut listesi). Faz 5'te yalnızca kapak resmi kaldı.
+
+## 2026-11-17 · Kısayollar: kart yalnızca kimlik gönderir, komutlar bilgisayarda sabit listede
+- Neden: seri port üzerinden gelen veriyle komut satırı kurmak tehlikeli olurdu. `shortcuts.py` dışındaki hiçbir
+  kimlik çalıştırılmaz. Uygulamalar `kstart --application <masaüstü-kimliği>` ile açılıyor; pencere zaten açıksa
+  öne geliyor.
+
+## 2026-11-17 · Yazı tipleri: Montserrat Medium + Font Awesome 5, lv_font_conv ile üretim
+- Seçenekler: LVGL'nin hazır yazı tipleri (Türkçe yok) · lv_font_conv · çevrimiçi LVGL font dönüştürücü (elle)
+- Neden: komut satırından tekrarlanabilir üretim (`tools/fontlari_uret.sh`), Türkçe + Latin-1 + Latin Ext-A
+  aralığı (yabancı şarkı adları için de), 4 bpp. Taslaktaki kalın ağırlık yok, LVGL deposunda yalnızca Medium var.
+
 ## 2026-11-17 · Bağlantı ilk aşamada USB seri (CH343) üzerinden
 - Seçenekler: USB seri · kartın kendi USB'si (CDC/HID) · Wi‑Fi/WebSocket
 - Neden: hem programlama hem veri tek kabloyla; sürücü gerektirmez; en kolay hata ayıklama.

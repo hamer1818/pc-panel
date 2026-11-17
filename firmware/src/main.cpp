@@ -1,8 +1,9 @@
 /*
  * PC Panel — kart yazılımı
  *
- * Faz 3: bilgisayardan seri port (CH343, 921600 baud) ile gelen JSON satırlarını okur, ekranda gösterir;
- * medya düğmelerine basılınca bilgisayara komut gönderir. Protokol: ../docs/02-mimari.md
+ * Bilgisayardan seri port (CH343, 921600 baud) ile gelen JSON satırlarını okur, ekranda gösterir;
+ * dokunmatik arayüzden bilgisayara komut gönderir. Protokol v1.1: ../docs/02-mimari.md
+ * Arayüz (Faz 4): ui.cpp — Sistem · Medya · Kısayollar.
  *
  * Kart başlatma kodu ESP32_Display_Panel v1.0.4 "lvgl_v8_port" örneğinden alınmıştır (CC0-1.0).
  */
@@ -18,7 +19,7 @@
 using namespace esp_panel::drivers;
 using namespace esp_panel::board;
 
-#define FW_VERSION "0.3.0"
+#define FW_VERSION "0.4.0"
 #define PROTO_VERSION 1
 #define LINK_BAUD 921600
 #define LINK_TIMEOUT_MS 3000
@@ -41,6 +42,12 @@ void link_send_cmd(const char *cmd, int value, bool has_value)
     }
 }
 
+// Kısayol kimliği sabit listeden gelir (ui.cpp), serbest metin değildir
+void link_send_shortcut(const char *id)
+{
+    Serial.printf("{\"t\":\"cmd\",\"c\":\"shortcut\",\"id\":\"%s\"}\n", id);
+}
+
 static void handle_line(char *line, size_t len)
 {
     if (line[0] != '{') {
@@ -57,7 +64,8 @@ static void handle_line(char *line, size_t len)
     if (strcmp(t, "stat") == 0) {
         ui_update_stat(o);
     } else if (strcmp(t, "media") == 0) {
-        ui_update_media(o);
+        ui_update_media(o);    } else if (strcmp(t, "vol") == 0) {
+        ui_update_vol(o);
     }
     lvgl_port_unlock();
 
@@ -114,7 +122,6 @@ void setup()
 
     lvgl_port_lock(-1);
     ui_create();
-    ui_set_link(false, 0);
     lvgl_port_unlock();
 
     Serial.printf("{\"t\":\"hello\",\"fw\":\"%s\",\"proto\":%d}\n", FW_VERSION, PROTO_VERSION);
@@ -137,9 +144,9 @@ void loop()
     if (now - last_ui >= 250) {
         last_ui = now;
         bool ok = last_rx_ms != 0 && now - last_rx_ms < LINK_TIMEOUT_MS;
-        if (ok || shown_ok) {  // bağlıyken sayaç güncellensin; kopunca bir kez "bağlantı yok" yazılsın
+        if (ok != shown_ok) {  // yalnızca durum değişince ekrana dokun
             lvgl_port_lock(-1);
-            ui_set_link(ok, rx_count);
+            ui_set_link(ok);
             lvgl_port_unlock();
         }
         shown_ok = ok;
