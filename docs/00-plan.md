@@ -117,8 +117,8 @@ Karar verilecek içerik listesi:
 - [x] **[CLAUDE]** Sistem sesi (PipeWire, `wpctl`) okuma/ayarlama, sessiz; kaydırıcı ile çift yönlü eşleme → Faz 4'te yapıldı.
 - [x] **[CLAUDE]** İlerleme çubuğuna dokunarak sarma (seek) → Faz 4'te yapıldı.
 - [ ] **[CLAUDE]** Birden çok çalar varsa karttan çalar seçimi (isteğe bağlı).
-- [ ] **[SEN]** Farklı çalarlarla test: şarkı değişince kapak geliyor mu? Spotify, tarayıcıda YouTube, yerel çalar;
-      çalar kapatılınca yer tutucuya dönüyor mu?
+- [x] **[SEN]** Farklı çalarlarla test: şarkı değişince kapak geliyor mu? Spotify, tarayıcıda YouTube, yerel çalar;
+      çalar kapatılınca yer tutucuya dönüyor mu? → **hepsi düzgün**.
 
 **Bitti ölçütü:** Spotify ve tarayıcıda bütün kontroller ve kapak çalışıyor.
 
@@ -156,6 +156,6 @@ Karar verilecek içerik listesi:
 | 2 PC servisi | ✅ bitti (2026-11-17) |
 | 3 Protokol | ✅ bitti (2026-11-17) |
 | 4 Arayüz | ✅ bitti (2026-11-17) |
-| 5 Medya | ⏳ sıradaki — yalnızca kapak resmi kaldı |
-| 6 Kalıcı kurulum | — |
+| 5 Medya | ✅ bitti (2026-11-17); karttan çalar seçimi isteğe bağlı, yapılmadı |
+| 6 Kalıcı kurulum | ⏳ sıradaki |
 | 7 Ekstralar | — |

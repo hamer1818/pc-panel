@@ -13,7 +13,9 @@ En yeni kayıt en üstte.
   `lv_img` + kartta `clip_corner`. RAM %7,7, flash %15,5.
 - Deneme: Spotify kapağı 0,26 sn'de indirildi ve çevrildi. Karta 112 KB ≈1,5 sn'de ulaştı, CRC tuttu,
   aktarım sırasında bağlantı kopmadı.
-- **Sıradaki:** kullanıcı şarkı değiştirerek ve farklı çalarlarla deneyecek.
+- Kullanıcı testi: **hepsi düzgün**. Şarkı değişince kapak yenileniyor; Spotify, YouTube ve yerel çalarda
+  çalışıyor; çalarlar kapanınca yer tutucuya dönüyor.
+- **Faz 5 tamamlandı.** Karttan çalar seçimi (isteğe bağlı) yapılmadı. Sıradaki: Faz 6 — kalıcı kurulum.
 
 ## 2026-11-17 — Faz 4: Türkçe yazı tipleri ve karta ilk yükleme
 - Kullanıcı `npm install --prefix tools/node lv_font_conv@1.5.2` ile dönüştürücüyü kurdu.
