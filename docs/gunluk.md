@@ -2,6 +2,17 @@
 
 En yeni kayıt en üstte.
 
+## 2026-11-17 — Hata: yeniden bağlanınca ikonlar kayboluyordu (kart 0.10.1)
+- Kullanıcı: Uygulamalar sayfasında yalnızca Steam ikonu var, diğerlerinde sadece yazı.
+- Günlük: 19:21:18'de seri bağlantı iki kez koptu ve yeniden kuruldu (çekirdek günlüğünde USB kopması yok; o anda
+  Steam'den Proton ile bir oyun açılıyordu, Wine'ın seri portları yoklaması olası ama kanıtlanmadı). Her
+  bağlanışta `apps` + 10 ikon yeniden gönderildi; kart sayfayı yeniden kurarken tampon taştı, "ikon 1 alınamadı",
+  sonrakiler zincirleme kayboldu, kapak da bir kez bozuk geldi.
+- Düzeltme: bilgisayar ikonları dur-bekle ile gönderiyor (onay + 2 yeniden deneme); kart aynı `apps`/`tiles`
+  listesinde sayfayı yeniden kurmuyor; seri tampon 16 → 32 KB.
+- Deneme: kart açılışında 2 ikon bir kez bozuldu, yeniden denemeyle geldi (10/10). Ayar değiştirilerek sayfa iki kez
+  yeniden kuruldu: 10/10, hatasız. Servis art arda 3 kez yeniden başlatıldı: her seferinde 10/10, sayfa silinmedi.
+
 ## 2026-11-17 — Faz 7E: hızlı uygulama başlatma (kart 0.10.0)
 - İstek: Steam, Epic Games, Antigravity, VS Code, Zen, Discord, Spotify, RustDesk, AnyDesk, Thunderbird.
 - Yoklama: hepsinin `.desktop` dosyası var (Epic: `~/.local/share/applications/epic-games-launcher.desktop`,

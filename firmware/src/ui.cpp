@@ -1316,6 +1316,22 @@ void ui_clear_art()
 // ---- Faz 7: kısayollar, bildirim, uyarı, hava durumu, kilit saati ----
 void ui_set_tiles(JsonArrayConst items)
 {
+    // Aynı liste tekrar gelirse yeniden kurma (yeniden bağlanmalarda LVGL'yi boşuna meşgul etmesin)
+    bool same = static_cast<int>(items.size()) == tile_count;
+    int k = 0;
+    for (JsonObjectConst it : items) {
+        if (!same || k >= MAX_TILES) {
+            break;
+        }
+        const Tile &t = tiles[k++];
+        const char *tg = it["tg"] | "";
+        Toggle want = strcmp(tg, "mic") == 0 ? TG_MIC : strcmp(tg, "mute") == 0 ? TG_MUTE : TG_NONE;
+        same = strcmp(t.id, it["id"] | "") == 0 && strcmp(t.title, it["ti"] | "?") == 0 &&
+               strcmp(t.desc, it["de"] | "") == 0 && t.icon == ICON(it["ic"] | "star") && t.tg == want;
+    }
+    if (same) {
+        return;
+    }
     int n = 0;
     for (JsonObjectConst it : items) {
         if (n >= MAX_TILES) {
@@ -1584,6 +1600,19 @@ void ui_update_git(JsonObjectConst o)
 
 void ui_set_apps(JsonArrayConst items)
 {
+    // Liste aynıysa sayfayı yeniden kurma: ikonlar yerinde kalsın (yeniden bağlanınca aynı liste tekrar gelir)
+    bool same = static_cast<int>(items.size()) == app_count;
+    int k = 0;
+    for (JsonObjectConst it : items) {
+        if (!same || k >= MAX_APPS) {
+            break;
+        }
+        same = strcmp(apps[k].id, it["id"] | "") == 0 && strcmp(apps[k].title, it["ti"] | (it["id"] | "")) == 0;
+        k++;
+    }
+    if (same) {
+        return;
+    }
     int n = 0;
     for (JsonObjectConst it : items) {
         if (n >= MAX_APPS) {

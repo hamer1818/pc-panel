@@ -11,6 +11,15 @@ Her karar: tarih · karar · düşünülen seçenekler · neden.
   derlenseydi her yeni uygulama için kart yazılımı yeniden yüklenmeliydi.
 - Uygulama ayar dosyasında yalnızca `.desktop` kimliğiyle yazılıyor; ad ve ikon oradan geliyor, ad isteğe göre kısaltılabiliyor.
 
+## 2026-11-17 · İkonlar dur-bekle ile gönderilir; aynı liste gelince kart sayfayı yeniden kurmaz
+- Sorun (kullanıcı fark etti): yeniden bağlanınca yalnızca Steam ikonu kaldı. Kart `apps`/`tiles` ile sayfayı
+  kurarken (LVGL kilidi) gelen veri 16 KB seri tamponu taştı; bir ikon bozulunca arkasındakiler de zincirleme
+  kayboldu ve yeniden denenmedi.
+- Seçenekler: yalnızca tamponu büyütmek · ikonları tek tek, onay bekleyerek göndermek · ikonları kartta saklamak.
+- Karar: üçünün en ucuz ikisi birlikte + yeniden kurmayı önlemek. Dur-bekle 10 ikonda ≈2 sn sürüyor (öncekinden
+  ≈0,5 sn yavaş) ama bozulan ikon kendiliğinden yeniden geliyor. Tampon 32 KB. Aynı liste gelince kart hiçbir şeyi
+  silmiyor, yani bağlantı kopmaları ikonları artık hiç etkilemiyor.
+
 ## 2026-11-17 · Karttan Claude izin onayı YAPILMAYACAK
 - Önerilmişti: Claude izin isteyince kartta komut + Onayla / Reddet (PermissionRequest hook'u ile).
 - Kullanıcı kararı: yapılmayacak. Kart yalnızca haber verir; izinler her zaman bilgisayardan verilir.

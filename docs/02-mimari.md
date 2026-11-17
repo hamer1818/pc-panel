@@ -142,7 +142,9 @@ tekrar gelirse yok sayılır. Disk doluluk uyarısı bir `notif` mesajı olarak 
 | `cmd` `app` | kart → PC | `{"t":"cmd","c":"app","id":"steam"}`; PC kimliği listede arar, `kstart --application <id>` |
 
 İkili alım kapak resmiyle ortak (aynı zaman aşımı ve CRC); ikon ortak bir PSRAM tamponuna alınır, CRC tutunca
-kutunun kendi tamponuna kopyalanır. 10 ikon ≈ 120 KB, ≈ 1,5 sn. Kaynak: `apps.py` (`.desktop` → `Icon=` →
+kutunun kendi tamponuna kopyalanır. **İkonlar dur-bekle ile gider** (0.10.1): bilgisayar bir ikonu gönderir, kartın
+`icon` yanıtını bekler (5 sn), ulaşmadıysa 2 kez daha dener; `apps` mesajından sonra 0,3 sn bekler. Kart aynı `apps`
+ya da `tiles` listesi gelirse sayfayı yeniden kurmaz (ikonlar yerinde kalır). Kartın seri alım tamponu 32 KB. 10 ikon ≈ 120 KB, ≈ 1,5 sn. Kaynak: `apps.py` (`.desktop` → `Icon=` →
 ikon teması + hicolor + pixmaps; SVG için `rsvg-convert`).
 
 Kaynaklar: `usage.py` (`~/.claude*/projects/**/*.jsonl`, yalnızca eklenen satırlar okunur, içerik okunmaz),

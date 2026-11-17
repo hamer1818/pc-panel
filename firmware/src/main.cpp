@@ -21,7 +21,7 @@
 using namespace esp_panel::drivers;
 using namespace esp_panel::board;
 
-#define FW_VERSION "0.10.0"
+#define FW_VERSION "0.10.1"
 #define PROTO_VERSION 1
 #define LINK_BAUD 921600
 #define LINK_TIMEOUT_MS 3000
@@ -246,7 +246,7 @@ static void poll_serial()
 
 void setup()
 {
-    Serial.setRxBufferSize(16384);
+    Serial.setRxBufferSize(32768);  // kart sayfa kurarken (LVGL kilidi) gelen veri taşmasın
     Serial.begin(LINK_BAUD);
     Serial.println("# pc-panel basliyor");
 

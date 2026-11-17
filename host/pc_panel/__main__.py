@@ -74,7 +74,33 @@ async def serve(args: argparse.Namespace, media: MediaWatcher) -> int:
     dev = {"gh": gh_message(None, "yükleniyor"), "srv": None, "cu": None, "git": None, "wake": asyncio.Event()}
     claude = ClaudeTracker()
     # Uygulamalar: ayar değişince arka planda çözülür (ad + ikon); hazır olunca karta gönderilir
-    apps_state = {"version": -1, "apps": [], "icons": [], "sent": None, "task": None}
+    apps_state = {"version": -1, "apps": [], "icons": [], "sent": None, "task": None, "icon_task": None}
+    icon_acks: dict[int, asyncio.Future] = {}  # ikon sırası → kartın {"t":"icon","ok":…} yanıtı
+
+    async def send_icons(key: tuple) -> None:
+        """İkonları tek tek gönderir ve her birinin onayını bekler (dur-bekle). Kart sayfayı kurarken seri tampon
+        taşabiliyordu; bir ikon bozulunca arkasındakiler de kayboluyordu. Ulaşmayan ikon 2 kez daha denenir."""
+        await asyncio.sleep(0.3)  # kart `apps` ile sayfayı kurarken beklesin
+        loop = asyncio.get_running_loop()
+        for i, data in enumerate(apps_state["icons"]):
+            if not data:
+                continue
+            for attempt in range(3):
+                if apps_state["sent"] != key or not link.connected:
+                    return  # liste değişti ya da bağlantı koptu: yeni gönderim başlayacak
+                fut = loop.create_future()
+                icon_acks[i] = fut
+                link.send(appmod.icon_header(i, data), data)
+                try:
+                    ok = await asyncio.wait_for(fut, 5.0)
+                except asyncio.TimeoutError:
+                    ok = False
+                finally:
+                    icon_acks.pop(i, None)
+                if ok:
+                    break
+                log(f"ikon {i} ulaşmadı" + (", yeniden gönderiliyor" if attempt < 2 else ", bırakıldı"))
+                await asyncio.sleep(0.5)
 
     async def load_apps(version: int, wanted: list[tuple[str, str]]) -> None:
         def work():
@@ -102,10 +128,11 @@ async def serve(args: argparse.Namespace, media: MediaWatcher) -> int:
         if key == apps_state["sent"] or not link.connected:
             return
         send(apps_message(apps_state["apps"]))
-        for i, data in enumerate(apps_state["icons"]):
-            if data:
-                link.send(appmod.icon_header(i, data), data)  # ikili blok: debug'da yazdırılmaz
         apps_state["sent"] = key
+        old = apps_state["icon_task"]
+        if old and not old.done():
+            old.cancel()
+        apps_state["icon_task"] = asyncio.create_task(send_icons(key))
     servers = ServerWatcher()
 
     def maybe_send_settings() -> None:
@@ -356,10 +383,11 @@ async def serve(args: argparse.Namespace, media: MediaWatcher) -> int:
                 ui_state["sent"] = None
                 apps_state["sent"] = None
             elif kind == "icon":
-                if not msg.get("ok"):
-                    log(f"kart: ikon {msg.get('i')} alınamadı")
-                elif args.debug:
-                    log(f"kart: ikon {msg.get('i')} alındı")
+                fut = icon_acks.get(msg.get("i"))
+                if fut and not fut.done():
+                    fut.set_result(bool(msg.get("ok")))
+                if args.debug:
+                    log(f"kart: ikon {msg.get('i')} {'alındı' if msg.get('ok') else 'alınamadı'}")
             elif kind == "art":
                 if msg.get("ok"):
                     if args.debug:
