@@ -2,6 +2,22 @@
 
 En yeni kayıt en üstte.
 
+## 2026-11-17 — Faz 4: tercihler ve tasarım taslağı v1
+- Kullanıcı tercihleri alındı (`kararlar.md`): Sistem sayfasında her şey; kaydırmalı sayfalar; koyu, sade tema;
+  Kısayollar sayfası olacak.
+- Taslak `docs/tasarim/taslak-v1.html` hazırlandı (tek dosya, Montserrat, yalnızca LVGL'de yapılabilecek öğeler).
+  - **Sistem:** CPU ve GPU için yay gösterge, sıcaklık, frekans/güç/fan ve 60 sn çizgi grafik. Altta 4 küçük kart:
+    RAM, VRAM, Diskler (iki çubuk + okuma/yazma), Ağ (+ PC açık kalma süresi).
+  - **Medya:** 240×240 kapak alanı, çalar etiketi, başlık/sanatçı/albüm, dokunarak sarılabilen ilerleme çubuğu,
+    −10 / ⏮ / ⏯ / ⏭ / +10 ve ses kaydırıcısı (sessiz düğmesiyle).
+  - **Kısayollar:** 4×2 kutu: kilitle, mikrofon (aç/kapa), ekran görüntüsü, ses (aç/kapa), Terminal, Tarayıcı,
+    Dosyalar, Spotify. Liste örnek; kesin listeyi kullanıcı belirleyecek.
+  - Renk kuralı: tek vurgu rengi mavi `#3aa0ff`. Yalnızca uyarıda renk değişiyor: %60 / 65 °C üstü sarı,
+    %85 / 80 °C üstü kırmızı.
+- Tarayıcıda üç sayfa kontrol edildi. Disk okuma/yazma satırı taşıyordu, tek satıra alındı.
+- Önizleme: `docs/tasarim` klasörü `python3 -m http.server 8765` ile sunuluyor (`.claude/launch.json` → "tasarim").
+- **Sıradaki:** kullanıcı taslağı inceleyip değişiklik isteyecek ya da onay verecek.
+
 ## 2026-11-17 — Faz 3: protokol ve iki yönlü bağlantı
 - Faz 2 commit'lendi (`b264911`).
 - Reset deneyi: pyserial varsayılan (DTR/RTS açık) ile açınca kart resetlenmiyor, ikisi kapalıyken resetleniyor

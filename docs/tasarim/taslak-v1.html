@@ -1,0 +1,423 @@
+<!doctype html>
+<html lang="tr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>PC Panel Taslak v1</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  /* Kart üzerindeki renk paleti (LVGL'ye aynen aktarılacak) */
+  :root {
+    --bg: #0d1014;        /* ekran zemini */
+    --card: #161b21;      /* kartlar */
+    --card-2: #1e252d;    /* düğme / iz zemini */
+    --line: #262e37;      /* ince ayırıcı */
+    --text: #e8edf2;
+    --muted: #8a96a3;
+    --faint: #5b6672;
+    --accent: #3aa0ff;    /* tek vurgu rengi */
+    --ok: #2ecc71;
+    --warn: #f1c40f;
+    --bad: #e74c3c;
+    --page-bg: #070809;   /* taslak sayfasının kendi zemini (kartın dışı) */
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; background: var(--page-bg); color: var(--text);
+    font-family: "Montserrat", system-ui, sans-serif; }
+  body { min-height: 100vh; display: flex; flex-direction: column; align-items: center; padding: 24px 16px 40px; gap: 18px; }
+  h1 { font-size: 18px; font-weight: 600; margin: 0; color: var(--text); }
+  .sub { font-size: 13px; color: var(--muted); margin: -10px 0 0; text-align: center; }
+
+  /* 800×480 ekran çerçevesi; küçük pencerede orantılı küçülür */
+  .bezel { padding: 14px; background: #000; border-radius: 18px; box-shadow: 0 0 0 1px #1c1f23; }
+  .fit { width: 800px; height: 480px; transform-origin: top left; }
+  .screen { width: 800px; height: 480px; background: var(--bg); position: relative; overflow: hidden;
+    user-select: none; touch-action: pan-y; cursor: grab; }
+  .screen.dragging { cursor: grabbing; }
+
+  /* Üst şerit: her sayfada aynı */
+  .topbar { position: absolute; top: 0; left: 0; right: 0; height: 40px; display: flex; align-items: center;
+    padding: 0 18px; gap: 14px; z-index: 5; }
+  .clock { font-size: 20px; font-weight: 600; letter-spacing: .5px; }
+  .date { font-size: 13px; color: var(--muted); }
+  .page-title { position: absolute; left: 50%; transform: translateX(-50%); font-size: 13px; font-weight: 600;
+    color: var(--muted); letter-spacing: 1.5px; text-transform: uppercase; }
+  .link { margin-left: auto; display: flex; align-items: center; gap: 8px; font-size: 12px; color: var(--muted); }
+  .dot { width: 9px; height: 9px; border-radius: 50%; background: var(--ok); }
+
+  .track { position: absolute; top: 40px; left: 0; height: 412px; width: 2400px; display: flex;
+    transition: transform .28s cubic-bezier(.2,.8,.2,1); }
+  .track.nodelay { transition: none; }
+  .page { width: 800px; height: 412px; padding: 4px 14px 0; position: relative; }
+
+  .dots { position: absolute; bottom: 10px; left: 50%; transform: translateX(-50%); display: flex; gap: 8px; z-index: 5; }
+  .dots span { width: 7px; height: 7px; border-radius: 50%; background: var(--line); transition: background .2s, width .2s; }
+  .dots span.on { background: var(--accent); width: 20px; border-radius: 4px; }
+
+  .card { background: var(--card); border-radius: 14px; position: absolute; overflow: hidden; }
+  .label { font-size: 12px; font-weight: 600; color: var(--muted); letter-spacing: 1px; text-transform: uppercase; }
+
+  /* --- Sistem sayfası --- */
+  .big { left: 14px; top: 4px; width: 380px; height: 228px; padding: 14px 16px; }
+  .big.gpu { left: 406px; }
+  .big .head { display: flex; align-items: baseline; justify-content: space-between; }
+  .big .name { font-size: 12px; color: var(--faint); }
+  .gauge-row { display: flex; align-items: center; gap: 16px; margin-top: 6px; }
+  .gauge { position: relative; width: 118px; height: 118px; flex: none; }
+  .gauge svg { width: 118px; height: 118px; }
+  .gauge .val { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center;
+    justify-content: center; }
+  .gauge .num { font-size: 30px; font-weight: 700; line-height: 1; }
+  .gauge .unit { font-size: 11px; color: var(--muted); margin-top: 4px; }
+  .facts { display: grid; grid-template-columns: auto auto; gap: 8px 14px; align-content: center; flex: 1; }
+  .facts .k { font-size: 12px; color: var(--muted); }
+  .facts .v { font-size: 17px; font-weight: 600; text-align: right; }
+  .spark { position: absolute; left: 16px; right: 16px; bottom: 12px; height: 54px; }
+  .spark svg { width: 100%; height: 100%; display: block; }
+  .spark .cap { position: absolute; right: 0; top: -14px; font-size: 10px; color: var(--faint); }
+
+  .small { top: 244px; width: 185px; height: 150px; padding: 12px 14px; }
+  .small .main { font-size: 22px; font-weight: 700; margin-top: 8px; }
+  .small .main small { font-size: 13px; font-weight: 500; color: var(--muted); }
+  .bar { height: 8px; background: var(--card-2); border-radius: 4px; overflow: hidden; margin-top: 10px; }
+  .bar i { display: block; height: 100%; border-radius: 4px; background: var(--accent); }
+  .small .foot { font-size: 12px; color: var(--muted); margin-top: 10px; }
+  .disk-row { margin-top: 9px; }
+  .disk-row .t { display: flex; justify-content: space-between; font-size: 12px; color: var(--muted); }
+  .disk-row .t b { color: var(--text); font-weight: 600; }
+  .disk-row .bar { margin-top: 5px; height: 6px; }
+  .net-row { display: flex; justify-content: space-between; align-items: baseline; margin-top: 9px; }
+  .net-row .a { font-size: 13px; color: var(--muted); }
+  .net-row .b { font-size: 18px; font-weight: 700; }
+
+  /* --- Medya sayfası --- */
+  .art { left: 14px; top: 4px; width: 240px; height: 240px; border-radius: 14px; position: absolute;
+    background: linear-gradient(135deg, #2b3a4a, #1a2230 55%, #3a2b35); display: flex; align-items: center; justify-content: center; }
+  .art .note { font-size: 64px; color: rgba(255,255,255,.18); }
+  .art .tag { position: absolute; bottom: 10px; left: 10px; font-size: 10px; color: rgba(255,255,255,.5); }
+  .minfo { position: absolute; left: 274px; top: 10px; right: 20px; }
+  .player { display: flex; align-items: center; gap: 8px; font-size: 12px; color: var(--muted); }
+  .player .pill { background: var(--card-2); border-radius: 10px; padding: 3px 9px; color: var(--text); font-weight: 600; }
+  .title { font-size: 30px; font-weight: 700; margin-top: 14px; line-height: 1.15; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .artist { font-size: 20px; margin-top: 6px; color: var(--text); }
+  .album { font-size: 14px; margin-top: 4px; color: var(--muted); }
+  .progress { position: absolute; left: 274px; right: 20px; top: 178px; }
+  .slider { position: relative; height: 22px; display: flex; align-items: center; cursor: pointer; }
+  .slider .rail { position: absolute; left: 0; right: 0; height: 6px; background: var(--card-2); border-radius: 3px; }
+  .slider .fill { position: absolute; left: 0; height: 6px; background: var(--accent); border-radius: 3px; }
+  .slider .knob { position: absolute; width: 18px; height: 18px; border-radius: 50%; background: var(--text);
+    transform: translateX(-9px); }
+  .times { display: flex; justify-content: space-between; font-size: 12px; color: var(--muted); margin-top: 2px; }
+  .controls { position: absolute; left: 14px; right: 14px; top: 262px; display: flex; gap: 12px; align-items: center; }
+  .btn { background: var(--card); border-radius: 14px; border: 0; color: var(--text); font: inherit;
+    display: flex; align-items: center; justify-content: center; cursor: pointer; transition: background .12s; }
+  .btn:active, .btn.pressed { background: var(--accent); }
+  .btn svg { width: 30px; height: 30px; fill: currentColor; }
+  .btn.main-btn { width: 120px; height: 84px; }
+  .btn.main-btn.play { background: var(--accent); color: #fff; }
+  .btn.main-btn svg { width: 38px; height: 38px; }
+  .btn.side { width: 96px; height: 84px; }
+  .btn.seek { width: 84px; height: 84px; font-size: 15px; font-weight: 600; flex-direction: column; gap: 2px; }
+  .btn.seek small { font-size: 10px; color: var(--muted); font-weight: 500; }
+  .vol { flex: 1; height: 84px; background: var(--card); border-radius: 14px; display: flex; align-items: center; gap: 12px; padding: 0 16px; }
+  .vol .ico { width: 26px; height: 26px; fill: var(--muted); flex: none; cursor: pointer; }
+  .vol .slider { flex: 1; }
+  .vol .pct { font-size: 15px; font-weight: 600; width: 40px; text-align: right; }
+
+  /* --- Kısayollar sayfası --- */
+  .grid { position: absolute; left: 14px; right: 14px; top: 4px; display: grid; grid-template-columns: repeat(4, 1fr);
+    gap: 12px; }
+  .tile { height: 178px; background: var(--card); border-radius: 14px; display: flex; flex-direction: column;
+    align-items: center; justify-content: center; gap: 14px; cursor: pointer; transition: background .12s; }
+  .tile:active, .tile.pressed { background: var(--card-2); }
+  .tile svg { width: 44px; height: 44px; fill: none; stroke: var(--text); stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+  .tile .tl { font-size: 15px; font-weight: 600; }
+  .tile .td { font-size: 11px; color: var(--muted); margin-top: -8px; }
+  .tile.on svg { stroke: var(--accent); }
+  .tile.on .td { color: var(--accent); }
+
+  .toast { position: absolute; left: 50%; bottom: 34px; transform: translate(-50%, 20px); background: var(--card-2);
+    color: var(--text); font-size: 13px; padding: 9px 16px; border-radius: 10px; opacity: 0; transition: .2s; z-index: 9; pointer-events: none; }
+  .toast.show { opacity: 1; transform: translate(-50%, 0); }
+
+  /* Taslağın altındaki açıklamalar (kartta yok) */
+  .notes { width: min(828px, 100%); display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
+  .note-card { background: #101317; border: 1px solid #1c2128; border-radius: 12px; padding: 14px 16px; font-size: 13px; line-height: 1.55; color: var(--muted); }
+  .note-card b { color: var(--text); display: block; margin-bottom: 4px; font-size: 14px; }
+  .note-card button { margin-top: 8px; background: var(--card-2); color: var(--text); border: 0; border-radius: 8px; padding: 6px 12px; font: inherit; font-size: 12px; cursor: pointer; }
+  .hint { font-size: 12px; color: var(--faint); text-align: center; }
+  @media (max-width: 720px) { .notes { grid-template-columns: 1fr; } }
+</style>
+</head>
+<body>
+  <h1>PC Panel — arayüz taslağı v1</h1>
+  <p class="sub">Waveshare 4.3" · 800×480 · koyu, sade tema · 3 kaydırmalı sayfa</p>
+
+  <div class="bezel"><div class="fit" id="fit"><div class="screen" id="screen">
+    <div class="topbar">
+      <span class="clock" id="clock">16:05</span>
+      <span class="date" id="date">17 Kasım Pazartesi</span>
+      <span class="page-title" id="ptitle">Sistem</span>
+      <span class="link"><span class="dot" id="ldot"></span><span id="ltext">Bağlı</span></span>
+    </div>
+
+    <div class="track" id="track">
+      <!-- ============ 1) SİSTEM ============ -->
+      <section class="page" data-title="Sistem">
+        <div class="card big" id="cpuCard">
+          <div class="head"><span class="label">CPU</span><span class="name">Ryzen 7 9800X3D</span></div>
+          <div class="gauge-row">
+            <div class="gauge"><svg viewBox="0 0 118 118"><circle cx="59" cy="59" r="50" fill="none" stroke="var(--card-2)" stroke-width="11" stroke-linecap="round" stroke-dasharray="235.6 314.2" transform="rotate(135 59 59)"/><circle class="arc" cx="59" cy="59" r="50" fill="none" stroke="var(--accent)" stroke-width="11" stroke-linecap="round" stroke-dasharray="0 314.2" transform="rotate(135 59 59)"/></svg>
+              <div class="val"><span class="num" data-k="cpu">12</span><span class="unit">% yük</span></div></div>
+            <div class="facts">
+              <span class="k">Sıcaklık</span><span class="v" data-k="cpu_t">46°C</span>
+              <span class="k">Frekans</span><span class="v" data-k="cpu_mhz">3,58 GHz</span>
+              <span class="k">En yoğun çekirdek</span><span class="v" data-k="cpu_core">%31</span>
+            </div>
+          </div>
+          <div class="spark"><span class="cap">son 60 sn</span><svg viewBox="0 0 348 54" preserveAspectRatio="none"><polyline class="sl" fill="none" stroke="var(--accent)" stroke-width="2" points=""/></svg></div>
+        </div>
+
+        <div class="card big gpu" id="gpuCard">
+          <div class="head"><span class="label">GPU</span><span class="name">GeForce RTX 5080</span></div>
+          <div class="gauge-row">
+            <div class="gauge"><svg viewBox="0 0 118 118"><circle cx="59" cy="59" r="50" fill="none" stroke="var(--card-2)" stroke-width="11" stroke-linecap="round" stroke-dasharray="235.6 314.2" transform="rotate(135 59 59)"/><circle class="arc" cx="59" cy="59" r="50" fill="none" stroke="var(--accent)" stroke-width="11" stroke-linecap="round" stroke-dasharray="0 314.2" transform="rotate(135 59 59)"/></svg>
+              <div class="val"><span class="num" data-k="gpu">7</span><span class="unit">% yük</span></div></div>
+            <div class="facts">
+              <span class="k">Sıcaklık</span><span class="v" data-k="gpu_t">45°C</span>
+              <span class="k">Güç</span><span class="v" data-k="gpu_w">39 W</span>
+              <span class="k">Fan</span><span class="v" data-k="gpu_fan">%0</span>
+            </div>
+          </div>
+          <div class="spark"><span class="cap">son 60 sn</span><svg viewBox="0 0 348 54" preserveAspectRatio="none"><polyline class="sl" fill="none" stroke="var(--accent)" stroke-width="2" points=""/></svg></div>
+        </div>
+
+        <div class="card small" style="left:14px">
+          <span class="label">RAM</span>
+          <div class="main" data-k="ram">8,4 <small>/ 31 GB</small></div>
+          <div class="bar"><i data-bar="ram" style="width:27%"></i></div>
+          <div class="foot">swap %6</div>
+        </div>
+        <div class="card small" style="left:211px">
+          <span class="label">VRAM</span>
+          <div class="main" data-k="vram">2,2 <small>/ 16 GB</small></div>
+          <div class="bar"><i data-bar="vram" style="width:14%"></i></div>
+          <div class="foot">GPU belleği</div>
+        </div>
+        <div class="card small" style="left:408px">
+          <span class="label">Diskler</span>
+          <div class="disk-row"><div class="t"><span>Sistem /</span><b>%83</b></div><div class="bar"><i style="width:83%;background:var(--warn)"></i></div></div>
+          <div class="disk-row"><div class="t"><span>Veri /mnt/veri</span><b>%42</b></div><div class="bar"><i style="width:42%"></i></div></div>
+          <div class="foot" style="margin-top:12px">oku <b style="color:var(--text)" data-k="dsk_r">0 B/s</b> · yaz <b style="color:var(--text)" data-k="dsk_w">290 KB/s</b></div>
+        </div>
+        <div class="card small" style="left:605px; width:181px">
+          <span class="label">Ağ</span>
+          <div class="net-row"><span class="a">↓ indirme</span><span class="b" data-k="net_dn">1,2 MB/s</span></div>
+          <div class="net-row"><span class="a">↑ yükleme</span><span class="b" data-k="net_up">84 KB/s</span></div>
+          <div class="foot" data-k="up">PC açık: 4 sa 41 dk</div>
+        </div>
+      </section>
+
+      <!-- ============ 2) MEDYA ============ -->
+      <section class="page" data-title="Medya">
+        <div class="art"><span class="note">♪</span><span class="tag">kapak resmi (Faz 5)</span></div>
+        <div class="minfo">
+          <div class="player"><span class="pill">Spotify</span><span id="mstate">çalıyor</span></div>
+          <div class="title">Yola Çıktık Çoktan</div>
+          <div class="artist">SAS</div>
+          <div class="album">Yola Çıktık Çoktan · Albüm</div>
+        </div>
+        <div class="progress">
+          <div class="slider" id="seek"><div class="rail"></div><div class="fill" id="seekFill"></div><div class="knob" id="seekKnob"></div></div>
+          <div class="times"><span id="tpos">1:06</span><span id="tlen">2:41</span></div>
+        </div>
+        <div class="controls">
+          <button class="btn seek" data-cmd="−10 sn">−10<small>sn</small></button>
+          <button class="btn side" data-cmd="Önceki şarkı"><svg viewBox="0 0 24 24"><path d="M6 5h2v14H6zM20 5v14L9 12z"/></svg></button>
+          <button class="btn main-btn play" id="pp" data-cmd="Oynat / duraklat"><svg viewBox="0 0 24 24" id="ppIcon"><path d="M6 5h4v14H6zM14 5h4v14h-4z"/></svg></button>
+          <button class="btn side" data-cmd="Sonraki şarkı"><svg viewBox="0 0 24 24"><path d="M16 5h2v14h-2zM4 5v14l11-7z"/></svg></button>
+          <button class="btn seek" data-cmd="+10 sn">+10<small>sn</small></button>
+          <div class="vol">
+            <svg class="ico" id="muteBtn" viewBox="0 0 24 24"><path d="M4 9h4l5-4v14l-5-4H4z"/><path d="M16 8.5a4.5 4.5 0 0 1 0 7" stroke="var(--muted)" stroke-width="2" fill="none"/></svg>
+            <div class="slider" id="vol"><div class="rail"></div><div class="fill" id="volFill"></div><div class="knob" id="volKnob"></div></div>
+            <span class="pct" id="volPct">55%</span>
+          </div>
+        </div>
+      </section>
+
+      <!-- ============ 3) KISAYOLLAR ============ -->
+      <section class="page" data-title="Kısayollar">
+        <div class="grid">
+          <div class="tile" data-cmd="Ekran kilitlendi"><svg viewBox="0 0 24 24"><rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg><span class="tl">Ekranı kilitle</span><span class="td">KDE oturumu</span></div>
+          <div class="tile toggle" data-cmd="Mikrofon"><svg viewBox="0 0 24 24"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/></svg><span class="tl">Mikrofon</span><span class="td">açık</span></div>
+          <div class="tile" data-cmd="Ekran görüntüsü alındı"><svg viewBox="0 0 24 24"><path d="M4 8h3l2-3h6l2 3h3v11H4z"/><circle cx="12" cy="13" r="3.5"/></svg><span class="tl">Ekran görüntüsü</span><span class="td">Spectacle</span></div>
+          <div class="tile toggle" data-cmd="Sistem sesi"><svg viewBox="0 0 24 24"><path d="M4 9h4l5-4v14l-5-4H4z"/><path d="M17 9l4 6M21 9l-4 6"/></svg><span class="tl">Sesi kapat</span><span class="td">açık</span></div>
+          <div class="tile" data-cmd="Terminal açılıyor"><svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M7 10l3 2-3 2M12 15h5"/></svg><span class="tl">Terminal</span><span class="td">Konsole</span></div>
+          <div class="tile" data-cmd="Tarayıcı açılıyor"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3a14 14 0 0 1 0 18M12 3a14 14 0 0 0 0 18"/></svg><span class="tl">Tarayıcı</span><span class="td">Firefox</span></div>
+          <div class="tile" data-cmd="Dosyalar açılıyor"><svg viewBox="0 0 24 24"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg><span class="tl">Dosyalar</span><span class="td">Dolphin</span></div>
+          <div class="tile" data-cmd="Spotify öne getirildi"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M7.5 9.5c3-1 6.5-.7 9 .8M8 12.5c2.5-.7 5.3-.4 7.3.8M8.7 15.3c2-.5 4-.3 5.6.6"/></svg><span class="tl">Spotify</span><span class="td">öne getir</span></div>
+        </div>
+      </section>
+    </div>
+
+    <div class="dots" id="dots"><span class="on"></span><span></span><span></span></div>
+    <div class="toast" id="toast"></div>
+  </div></div></div>
+
+  <p class="hint">Sayfa değiştirmek için ekranı fareyle sola/sağa sürükleyin ya da ← → tuşlarını kullanın. Düğmeler ve kaydırıcılar tıklanabilir. Değerler örnek veridir.</p>
+
+  <div class="notes">
+    <div class="note-card"><b>1 · Sistem</b>CPU ve GPU için büyük yay göstergesi, sıcaklık, frekans/güç ve son 60 sn grafiği. Altta RAM, VRAM, iki disk ve ağ. Renkler yalnızca uyarıda değişir: %60/65°C üstü sarı, %85/80°C üstü kırmızı.
+      <button onclick="go(0)">Sistem'e git</button></div>
+    <div class="note-card"><b>2 · Medya</b>Solda kapak (Faz 5'te gerçek resim). Başlık, sanatçı, albüm; dokunarak sarılabilen ilerleme çubuğu; ⏮ ⏯ ⏭, ±10 sn ve sistem sesi kaydırıcısı (Faz 5).
+      <button onclick="go(1)">Medya'ya git</button></div>
+    <div class="note-card"><b>3 · Kısayollar</b>8 kutu: kilitle, mikrofon, ekran görüntüsü, ses, Terminal, Tarayıcı, Dosyalar, Spotify. Hangi kısayolların olacağı serbest; listeyi sen belirle.
+      <button onclick="go(2)">Kısayollar'a git</button></div>
+  </div>
+
+<script>
+(() => {
+  const screen = document.getElementById('screen'), track = document.getElementById('track');
+  const dots = [...document.querySelectorAll('#dots span')], pages = [...document.querySelectorAll('.page')];
+  const ptitle = document.getElementById('ptitle'), toastEl = document.getElementById('toast');
+  let page = 0;
+
+  // Küçük pencerede ekranı orantılı küçült
+  const fit = document.getElementById('fit');
+  function scale() {
+    const s = Math.min(1, (window.innerWidth - 60) / 800);
+    fit.style.transform = `scale(${s})`;
+    fit.parentElement.style.width = (800 * s + 28) + 'px';
+    fit.parentElement.style.height = (480 * s + 28) + 'px';
+  }
+  window.addEventListener('resize', scale); scale();
+
+  window.go = function (i) {
+    page = Math.max(0, Math.min(2, i));
+    track.classList.remove('nodelay');
+    track.style.transform = `translateX(${-page * 800}px)`;
+    dots.forEach((d, k) => d.classList.toggle('on', k === page));
+    ptitle.textContent = pages[page].dataset.title;
+  };
+  document.addEventListener('keydown', e => { if (e.key === 'ArrowRight') go(page + 1); if (e.key === 'ArrowLeft') go(page - 1); });
+
+  // Sürükleyerek sayfa değiştirme (karttaki parmakla kaydırmanın karşılığı)
+  let sx = null, dx = 0, moved = false;
+  screen.addEventListener('pointerdown', e => {
+    if (e.target.closest('.slider')) return;
+    sx = e.clientX; dx = 0; moved = false;
+  });
+  window.addEventListener('pointermove', e => {
+    if (sx === null) return;
+    const s = fit.getBoundingClientRect().width / 800;
+    dx = (e.clientX - sx) / s;
+    if (Math.abs(dx) > 8) { moved = true; screen.classList.add('dragging'); track.classList.add('nodelay');
+      track.style.transform = `translateX(${-page * 800 + dx}px)`; }
+  });
+  window.addEventListener('pointerup', () => {
+    if (sx === null) return;
+    screen.classList.remove('dragging');
+    if (moved) go(dx < -120 ? page + 1 : dx > 120 ? page - 1 : page);
+    sx = null;
+  });
+  screen.addEventListener('click', e => { if (moved) { e.stopPropagation(); e.preventDefault(); } }, true);
+
+  function toast(t) { toastEl.textContent = t; toastEl.classList.add('show'); clearTimeout(toast.h);
+    toast.h = setTimeout(() => toastEl.classList.remove('show'), 1300); }
+
+  // Saat
+  const days = ['Pazar','Pazartesi','Salı','Çarşamba','Perşembe','Cuma','Cumartesi'];
+  const months = ['Ocak','Şubat','Mart','Nisan','Mayıs','Haziran','Temmuz','Ağustos','Eylül','Ekim','Kasım','Aralık'];
+  function clock() { const d = new Date();
+    document.getElementById('clock').textContent = d.toTimeString().slice(0, 5);
+    document.getElementById('date').textContent = `${d.getDate()} ${months[d.getMonth()]} ${days[d.getDay()]}`; }
+  clock(); setInterval(clock, 10000);
+
+  // --- Örnek canlı veri ---
+  const levelColor = p => p < 60 ? 'var(--accent)' : p < 85 ? 'var(--warn)' : 'var(--bad)';
+  const tempColor = t => t < 65 ? 'var(--text)' : t < 80 ? 'var(--warn)' : 'var(--bad)';
+  const hist = { cpu: Array(60).fill(8), gpu: Array(60).fill(5) };
+  const st = { cpu: 12, gpu: 7, ct: 46, gt: 45, net: 1.2 };
+  const set = (k, v) => document.querySelectorAll(`[data-k="${k}"]`).forEach(e => e.innerHTML = v);
+  const fmt = n => n.toFixed(1).replace('.', ',');
+
+  function setGauge(card, pct, hs) {
+    const arc = card.querySelector('.arc');
+    arc.setAttribute('stroke-dasharray', `${(pct / 100 * 235.6).toFixed(1)} 314.2`);
+    arc.setAttribute('stroke', levelColor(pct));
+    const pts = hs.map((v, i) => `${(i / 59 * 348).toFixed(1)},${(52 - v / 100 * 50).toFixed(1)}`).join(' ');
+    card.querySelector('.sl').setAttribute('points', pts);
+  }
+  const walk = (v, lo, hi, step) => Math.max(lo, Math.min(hi, v + (Math.random() - .5) * step));
+  function tick() {
+    // Arada bir "oyun açıldı" sıçraması: renk eşiklerini göstermek için
+    const burst = Math.sin(Date.now() / 9000) > .55;
+    st.cpu = walk(burst ? 70 : st.cpu, 2, 96, 14); st.gpu = walk(burst ? 88 : st.gpu, 1, 99, 18);
+    st.ct = walk(st.ct + (st.cpu - 30) / 60, 38, 88, 1.5); st.gt = walk(st.gt + (st.gpu - 30) / 70, 35, 84, 1.5);
+    hist.cpu.push(st.cpu); hist.cpu.shift(); hist.gpu.push(st.gpu); hist.gpu.shift();
+    setGauge(document.getElementById('cpuCard'), st.cpu, hist.cpu);
+    setGauge(document.getElementById('gpuCard'), st.gpu, hist.gpu);
+    set('cpu', Math.round(st.cpu)); set('gpu', Math.round(st.gpu));
+    set('cpu_t', `<span style="color:${tempColor(st.ct)}">${Math.round(st.ct)}°C</span>`);
+    set('gpu_t', `<span style="color:${tempColor(st.gt)}">${Math.round(st.gt)}°C</span>`);
+    set('cpu_mhz', fmt(3.1 + st.cpu / 50) + ' GHz'); set('cpu_core', '%' + Math.min(100, Math.round(st.cpu * 2.4)));
+    set('gpu_w', Math.round(30 + st.gpu * 3.2) + ' W'); set('gpu_fan', '%' + (st.gpu > 40 ? Math.round(st.gpu * .7) : 0));
+    const vram = 2.2 + st.gpu / 12; set('vram', `${fmt(vram)} <small>/ 16 GB</small>`);
+    document.querySelector('[data-bar="vram"]').style.width = (vram / 16 * 100) + '%';
+    st.net = walk(st.net, 0.01, 40, 3); set('net_dn', st.net < 1 ? Math.round(st.net * 1024) + ' KB/s' : fmt(st.net) + ' MB/s');
+    set('net_up', Math.round(walk(80, 5, 400, 160)) + ' KB/s');
+    set('dsk_w', Math.round(walk(290, 0, 900, 400)) + ' KB/s');
+  }
+  tick(); setInterval(tick, 1000);
+
+  // --- Medya ---
+  const LEN = 161; let pos = 66, playing = true, vol = 55, muted = false;
+  const mmss = s => `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, '0')}`;
+  function drawSeek() { const p = pos / LEN * 100;
+    document.getElementById('seekFill').style.width = p + '%'; document.getElementById('seekKnob').style.left = p + '%';
+    document.getElementById('tpos').textContent = mmss(pos); document.getElementById('tlen').textContent = mmss(LEN); }
+  function drawVol() { const v = muted ? 0 : vol;
+    document.getElementById('volFill').style.width = v + '%'; document.getElementById('volKnob').style.left = v + '%';
+    document.getElementById('volPct').textContent = muted ? 'sessiz' : v + '%'; }
+  function drawPP() {
+    const pp = document.getElementById('pp');
+    document.getElementById('ppIcon').innerHTML = playing ? '<path d="M6 5h4v14H6zM14 5h4v14h-4z"/>' : '<path d="M7 4v16l13-8z"/>';
+    pp.classList.toggle('play', playing);
+    document.getElementById('mstate').textContent = playing ? 'çalıyor' : 'duraklatıldı';
+  }
+  setInterval(() => { if (playing) { pos = (pos + 1) % LEN; drawSeek(); } }, 1000);
+  drawSeek(); drawVol(); drawPP();
+
+  function bindSlider(el, onSet) {
+    const at = e => { const r = el.getBoundingClientRect(); return Math.max(0, Math.min(1, (e.clientX - r.left) / r.width)); };
+    el.addEventListener('pointerdown', e => { e.stopPropagation(); el.setPointerCapture(e.pointerId); onSet(at(e), false);
+      const mv = ev => onSet(at(ev), false), up = ev => { onSet(at(ev), true); el.removeEventListener('pointermove', mv); el.removeEventListener('pointerup', up); };
+      el.addEventListener('pointermove', mv); el.addEventListener('pointerup', up); });
+  }
+  bindSlider(document.getElementById('seek'), (f, done) => { pos = Math.round(f * LEN); drawSeek(); if (done) toast('Konuma sarıldı: ' + mmss(pos)); });
+  bindSlider(document.getElementById('vol'), (f, done) => { vol = Math.round(f * 100); muted = false; drawVol(); if (done) toast('Sistem sesi %' + vol); });
+  document.getElementById('muteBtn').addEventListener('click', () => { muted = !muted; drawVol(); toast(muted ? 'Ses kapatıldı' : 'Ses açıldı'); });
+
+  document.querySelectorAll('.controls .btn').forEach(b => b.addEventListener('click', () => {
+    const c = b.dataset.cmd;
+    if (b.id === 'pp') { playing = !playing; drawPP(); }
+    if (c === '−10 sn') { pos = Math.max(0, pos - 10); drawSeek(); }
+    if (c === '+10 sn') { pos = Math.min(LEN - 1, pos + 10); drawSeek(); }
+    if (c.includes('şarkı')) { pos = 0; drawSeek(); }
+    toast(c);
+  }));
+
+  // --- Kısayollar ---
+  document.querySelectorAll('.tile').forEach(t => t.addEventListener('click', () => {
+    if (t.classList.contains('toggle')) {
+      t.classList.toggle('on');
+      const on = t.classList.contains('on');
+      t.querySelector('.td').textContent = on ? 'kapalı' : 'açık';
+      toast(`${t.dataset.cmd} ${on ? 'kapatıldı' : 'açıldı'}`);
+    } else toast(t.dataset.cmd);
+  }));
+})();
+</script>
+</body>
+</html>

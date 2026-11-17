@@ -2,6 +2,15 @@
 
 Her karar: tarih · karar · düşünülen seçenekler · neden.
 
+## 2026-11-17 · Faz 4 arayüz tercihleri (kullanıcı seçti)
+- **İçerik (Sistem sayfası):** hepsi. CPU ve GPU yükü ile sıcaklığı; RAM ve VRAM; diskler ve ağ hızı;
+  son 60 sn grafikleri.
+- **Düzen:** kaydırmalı sayfalar. Sistem, Medya ve Kısayollar ayrı tam ekran sayfalar, sola/sağa kaydırılarak geçiliyor.
+  - Diğer seçenekler: tek ekran ikiye bölünmüş · özet ekranı ve ayrıntı sayfaları.
+- **Tema:** koyu, sade. Siyaha yakın zemin, tek vurgu rengi, süs yok.
+  - Diğer seçenekler: koyu "oyuncu" (neon) · aydınlık.
+- **Kısayollar sayfası:** olacak (Faz 7'ye bırakılmadı).
+
 ## 2026-11-17 · Bağlantı ilk aşamada USB seri (CH343) üzerinden
 - Seçenekler: USB seri · kartın kendi USB'si (CDC/HID) · Wi‑Fi/WebSocket
 - Neden: hem programlama hem veri tek kabloyla; sürücü gerektirmez; en kolay hata ayıklama.

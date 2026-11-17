@@ -84,8 +84,10 @@ Amaç: bilgisayar ile kart arasında güvenilir iki yönlü bağlantı.
 ## Faz 4 — Arayüz tasarımı
 Amaç: panelin son görünümüne karar verip LVGL ile yapmak.
 
-- [ ] **[SEN]** Ekranlarda ne görmek istediğine karar ver (liste aşağıda); öncelik sırası ver. Beğendiğin bir görünüm/renk/tema varsa referans görsel gönder.
-- [ ] **[CLAUDE]** 800×480 ölçüsünde tıklanabilir bir tasarım taslağı (HTML) hazırla: Sistem sayfası, Medya sayfası, (Kısayollar sayfası).
+- [x] **[SEN]** Ekranlarda ne görmek istediğine karar ver → hepsi; kaydırmalı sayfalar; koyu, sade tema;
+      Kısayollar sayfası olacak (ayrıntı: `kararlar.md`).
+- [x] **[CLAUDE]** 800×480 ölçüsünde tıklanabilir bir tasarım taslağı (HTML) hazırla → `docs/tasarim/taslak-v1.html`
+      (Sistem, Medya, Kısayollar; sürükleyerek / ← → ile sayfa değişimi; örnek canlı veri).
 - [ ] **[SEN]** Taslağı incele, değişiklik iste; **onay ver**.
 - [ ] **[CLAUDE]** Onaylanan tasarımı LVGL'ye aktar: sayfalar arası kaydırma, göstergeler, son 60 saniyelik grafikler, yazı tipleri (Türkçe karakterli).
 - [ ] **[SEN]** Gerçek ekranda okunabilirlik, düğme büyüklüğü, akıcılık kontrolü.
