@@ -20,5 +20,7 @@ Bu projede yapılan HER şeyin kaydı Markdown dosyalarında tutulur:
 - Dil: dokümanlar ve yorumlar Türkçe; kod içi isimler İngilizce.
 
 ## Ortam
-- Bilgisayar: CachyOS (Arch), KDE Plasma, PipeWire, Ryzen 7 9800X3D, RTX 5080.
+- Bilgisayar: çift açılış — CachyOS (Arch), KDE Plasma, PipeWire **ve** Windows 11; Ryzen 7 9800X3D, RTX 5080.
+  Servis iki sistemde de çalışmalı: Windows'a özgü kod `host/pc_panel/win/`, seçim `backend.py`. Linux modüllerini
+  değiştirirken Windows karşılığını da düşün (ve tersi). Windows'ta kurulum `deploy/kur.ps1`.
 - Kart: Waveshare ESP32-S3-Touch-LCD-4.3 (ESP32-S3N8R8). Ayrıntı: `docs/01-donanim.md`.

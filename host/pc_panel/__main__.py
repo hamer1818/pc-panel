@@ -7,7 +7,11 @@ Kullanım (host/ klasöründe):
     uv run pc-panel --json            # her saniye bir JSON satırı
     uv run pc-panel --once            # tek ölçüm, JSON, çık
     uv run pc-panel --komut play_pause   # etkin çalara komut gönder (play_pause, next, prev, seek_rel:10 ...)
-    uv run pc-panel --ayar-kontrol    # ayar dosyasını (~/.config/pc-panel/ayarlar.toml) denetle ve özetle
+    uv run pc-panel --ayar-kontrol    # ayar dosyasını denetle ve özetle
+    uv run pc-panel --uygulamalar     # Uygulamalar sayfasına yazılabilecek kimlikler (Windows: Başlat menüsü)
+    pythonw -m pc_panel --gunluk DOSYA   # Windows'ta penceresiz çalışma (deploy/kur.ps1 böyle kurar)
+
+Linux (KDE Plasma) ve Windows 10/11'de çalışır; işletim sistemine özgü kısımlar backend.py'de seçilir.
 """
 
 from __future__ import annotations
@@ -16,28 +20,33 @@ import argparse
 import asyncio
 import json
 import os
+import re
 import signal
 import sys
+import threading
 import time
 
-from . import apps as appmod, art, audio, shortcuts
+from . import art, shortcuts  # noqa: F401
 from .alerts import AlertTracker
+from .backend import WINDOWS, apps as appmod, audio, media as mediamod, notify as notifymod
 from .config import CONFIG_PATH, ConfigWatcher
 from .console import render
 from .gpu import GpuCollector
 from .link import DEFAULT_BAUD, SerialLink
-from .media import MediaWatcher
-from .notify import NotificationWatcher
 from .claude import ClaudeTracker, fmt_dur
 from .github import GhError, GitHubWatcher
 from .gitwatch import scan as git_scan, summary_text as git_summary
-from .olay import SOCK_PATH
+from .olay import EVENT_HOST, EVENT_PORT, SOCK_PATH
 from .protocol import (apps_message, cc_message, cfg_message, cu_message, gh_message, git_message, hw_message,
                        media_message, notif_message, srv_message, stat_message, tiles_message, vol_message)
 from .servers import ServerWatcher
 from .system import SystemCollector, cpu_name
 from .usage import UsageTracker
 
+MediaWatcher = mediamod.MediaWatcher
+NotificationWatcher = notifymod.NotificationWatcher
+LOG_MAX_BYTES = 2 * 1024 * 1024  # --gunluk dosyası bunu aşınca bir önceki ".1" olarak saklanır
+BIN_SETTLE_S = 0.5  # sayfa kuran mesajdan (tiles / apps) sonra ikili blok göndermeden önce bekle
 HB_TIMEOUT_S = 5.0
 ART_MAX_RETRY = 3
 MEDIA_COMMANDS = {"play_pause", "play", "pause", "next", "prev", "seek_rel", "seek_abs"}
@@ -76,6 +85,16 @@ async def serve(args: argparse.Namespace, media: MediaWatcher) -> int:
     # Uygulamalar: ayar değişince arka planda çözülür (ad + ikon); hazır olunca karta gönderilir
     apps_state = {"version": -1, "apps": [], "icons": [], "sent": None, "task": None, "icon_task": None}
     icon_acks: dict[int, asyncio.Future] = {}  # ikon sırası → kartın {"t":"icon","ok":…} yanıtı
+    # İkili bloklar (kapak, ikonlar) hiçbir zaman üst üste gönderilmez: biri gider, kartın onayı beklenir, sonra
+    # diğeri. Kart sayfa kurarken (tiles / apps) de bir an beklenir. Aksi hâlde kartın UART tamponu taşabiliyor.
+    bin_lock = asyncio.Lock()
+    heavy = {"at": 0.0}  # en son sayfa kuran mesajın (tiles / apps) gönderildiği an
+    art_ack: dict[str, asyncio.Future | None] = {"fut": None}
+
+    async def settle() -> None:
+        wait = heavy["at"] + BIN_SETTLE_S - time.monotonic()
+        if wait > 0:
+            await asyncio.sleep(wait)
 
     async def send_icons(key: tuple) -> None:
         """İkonları tek tek gönderir ve her birinin onayını bekler (dur-bekle). Kart sayfayı kurarken seri tampon
@@ -88,15 +107,17 @@ async def serve(args: argparse.Namespace, media: MediaWatcher) -> int:
             for attempt in range(3):
                 if apps_state["sent"] != key or not link.connected:
                     return  # liste değişti ya da bağlantı koptu: yeni gönderim başlayacak
-                fut = loop.create_future()
-                icon_acks[i] = fut
-                link.send(appmod.icon_header(i, data), data)
-                try:
-                    ok = await asyncio.wait_for(fut, 5.0)
-                except asyncio.TimeoutError:
-                    ok = False
-                finally:
-                    icon_acks.pop(i, None)
+                async with bin_lock:
+                    await settle()
+                    fut = loop.create_future()
+                    icon_acks[i] = fut
+                    link.send(appmod.icon_header(i, data), data)
+                    try:
+                        ok = await asyncio.wait_for(fut, 5.0)
+                    except asyncio.TimeoutError:
+                        ok = False
+                    finally:
+                        icon_acks.pop(i, None)
                 if ok:
                     break
                 log(f"ikon {i} ulaşmadı" + (", yeniden gönderiliyor" if attempt < 2 else ", bırakıldı"))
@@ -108,7 +129,8 @@ async def serve(args: argparse.Namespace, media: MediaWatcher) -> int:
             for app_id, title in wanted:
                 a = appmod.resolve(app_id, title)
                 if a is None:
-                    log(f"uygulama bulunamadı: {app_id} (.desktop dosyası yok)")
+                    log(f"uygulama bulunamadı: {app_id} "
+                        f"({'Başlat menüsünde yok' if WINDOWS else '.desktop dosyası yok'}; bkz. --uygulamalar)")
                     continue
                 found.append(a)
                 icons.append(appmod.icon_bytes(a))
@@ -128,6 +150,7 @@ async def serve(args: argparse.Namespace, media: MediaWatcher) -> int:
         if key == apps_state["sent"] or not link.connected:
             return
         send(apps_message(apps_state["apps"]))
+        heavy["at"] = time.monotonic()
         apps_state["sent"] = key
         old = apps_state["icon_task"]
         if old and not old.done():
@@ -142,6 +165,7 @@ async def serve(args: argparse.Namespace, media: MediaWatcher) -> int:
         s = config.settings
         if s.shortcuts:  # liste boşsa kart kendi yerleşik kutularını gösterir
             send(tiles_message(s.shortcuts))
+            heavy["at"] = time.monotonic()
         send(cfg_message(s))
         send(hw_message(cpu_name(), gpu.name or ""))
         system.mounts = s.disks
@@ -194,9 +218,14 @@ async def serve(args: argparse.Namespace, media: MediaWatcher) -> int:
         elif kind == "cmd":
             cmd = str(ev.get("cmd", "")).strip()
             words = cmd.split()
-            first = words[0].rsplit("/", 1)[-1] if words else ""
-            if first in ("sudo", "doas", "env", "time", "nice", "command", "exec") and len(words) > 1:
-                first = words[1].rsplit("/", 1)[-1]
+
+            def prog(w: str) -> str:  # "/usr/bin/nvim" → "nvim", "C:\…\python.exe" → "python"
+                name = re.split(r"[\\/]", w)[-1]
+                return name[:-4] if WINDOWS and name.lower().endswith(".exe") else name
+
+            first = prog(words[0]) if words else ""
+            if first in ("sudo", "doas", "env", "time", "nice", "command", "exec", "gsudo") and len(words) > 1:
+                first = prog(words[1])
             ms, code = int(ev.get("ms", 0)), int(ev.get("code", 0))
             if not s.cmd_on or ms < s.cmd_min_s * 1000 or not cmd or first in s.cmd_exclude:
                 return
@@ -220,12 +249,19 @@ async def serve(args: argparse.Namespace, media: MediaWatcher) -> int:
             finally:
                 writer.close()
 
-        try:
-            os.unlink(SOCK_PATH)  # önceki çalışmadan kalan soket dosyası
-        except FileNotFoundError:
-            pass
-        server = await asyncio.start_unix_server(client, path=SOCK_PATH)
-        os.chmod(SOCK_PATH, 0o600)
+        if WINDOWS:  # Python Windows'ta Unix soketi açamaz: yalnızca bu bilgisayardan erişilen TCP
+            try:
+                server = await asyncio.start_server(client, EVENT_HOST, EVENT_PORT)
+            except OSError as e:
+                log(f"olay portu {EVENT_PORT} açılamadı ({e}); Claude / komut olayları gelmeyecek")
+                return
+        else:
+            try:
+                os.unlink(SOCK_PATH)  # önceki çalışmadan kalan soket dosyası
+            except FileNotFoundError:
+                pass
+            server = await asyncio.start_unix_server(client, path=SOCK_PATH)
+            os.chmod(SOCK_PATH, 0o600)
         async with server:
             await server.serve_forever()
 
@@ -302,14 +338,24 @@ async def serve(args: argparse.Namespace, media: MediaWatcher) -> int:
     art_state = {"sent": None, "pending": None, "task": None, "fails": 0, "url": None}
 
     async def push_art(key: tuple, url: str) -> None:
-        pixels = await asyncio.to_thread(art.load, url) if url else None
-        if art_state["pending"] != key:  # bu arada şarkı değişti
-            return
-        link.send(art.header(pixels), pixels or b"")
-        art_state["sent"], art_state["pending"] = key, None
-        if url:
-            what = f"{len(pixels) // 1024} KB" if pixels else "okunamadı, yer tutucu"
-            log(f"kapak gönderildi ({what})" if args.debug or not pixels else "kapak gönderildi")
+        pixels = await media.fetch_art(url) if url else None
+        async with bin_lock:
+            if art_state["pending"] != key:  # bu arada şarkı değişti
+                return
+            await settle()
+            fut = art_ack["fut"] = asyncio.get_running_loop().create_future() if pixels else None
+            link.send(art.header(pixels), pixels or b"")
+            art_state["sent"], art_state["pending"] = key, None
+            if url:
+                what = f"{len(pixels) // 1024} KB" if pixels else "okunamadı, yer tutucu"
+                log(f"kapak gönderildi ({what})" if args.debug or not pixels else "kapak gönderildi")
+            if fut is not None:  # kart onaylayana kadar başka ikili blok gönderme
+                try:
+                    await asyncio.wait_for(fut, 5.0)
+                except asyncio.TimeoutError:
+                    pass
+                finally:
+                    art_ack["fut"] = None
 
     def maybe_send_art(url: str) -> None:
         key = (url, link.generation)
@@ -391,6 +437,9 @@ async def serve(args: argparse.Namespace, media: MediaWatcher) -> int:
                 if args.debug:
                     log(f"kart: ikon {msg.get('i')} {'alındı' if msg.get('ok') else 'alınamadı'}")
             elif kind == "art":
+                fut = art_ack["fut"]
+                if fut and not fut.done():
+                    fut.set_result(bool(msg.get("ok")))
                 if msg.get("ok"):
                     if args.debug:
                         log("kart: kapak alındı")
@@ -439,15 +488,35 @@ async def serve(args: argparse.Namespace, media: MediaWatcher) -> int:
             elif not silent:
                 warned = False
 
-    # SIGTERM (systemd durdururken) ve Ctrl+C: karta "bye" gönder ki ekranı hemen karartsın
+    # SIGTERM (systemd durdururken) ve Ctrl+C: karta "bye" gönder ki ekranı hemen karartsın.
+    # Windows: Ctrl+C / Ctrl+Break (konsolda) ve oturum kapanışı (WM_ENDSESSION, win/session.py).
     stop = asyncio.Event()
+    bye_sent = threading.Event()
     loop = asyncio.get_running_loop()
-    for sig in (signal.SIGTERM, signal.SIGINT):
-        loop.add_signal_handler(sig, stop.set)
+    if WINDOWS:
+        from .win import session as winsession
+
+        def on_signal(*_):
+            loop.call_soon_threadsafe(stop.set)
+        for sig in (signal.SIGINT, signal.SIGBREAK):
+            signal.signal(sig, on_signal)
+
+        def on_end_session() -> None:  # Windows kapanırken: pencere iş parçacığında, "bye" gidene kadar bekle
+            loop.call_soon_threadsafe(stop.set)
+            bye_sent.wait(2.0)
+        winsession.watch_shutdown(on_end_session)
+    else:
+        for sig in (signal.SIGTERM, signal.SIGINT):
+            loop.add_signal_handler(sig, stop.set)
 
     tasks = [asyncio.create_task(c) for c in (link.maintain(), producer(), consumer(), watchdog(),
                                               notifier.run(), event_server(), github_loop(), servers_loop(),
                                               usage_loop(), git_loop())]
+    if WINDOWS:  # Windows'ta sinyal işleyicisi ancak olay döngüsü uyanınca çalışır; döngü en geç 0,5 sn'de uyansın
+        async def wake() -> None:
+            while True:
+                await asyncio.sleep(0.5)
+        tasks.append(asyncio.create_task(wake()))
     try:
         await stop.wait()
         log("kapanıyor")
@@ -455,13 +524,15 @@ async def serve(args: argparse.Namespace, media: MediaWatcher) -> int:
             link.send({"t": "bye"})
             await link.flush()
     finally:
+        bye_sent.set()
         for t in tasks:
             t.cancel()
         gpu.close()
-        try:
-            os.unlink(SOCK_PATH)
-        except OSError:
-            pass
+        if not WINDOWS:
+            try:
+                os.unlink(SOCK_PATH)
+            except OSError:
+                pass
     return 0
 
 
@@ -509,6 +580,8 @@ def check_config() -> int:
         a = appmod.resolve(app_id, title)
         icon = appmod.find_icon(a.icon_name) if a else None
         print(f"  [{app_id}] {a.title if a else 'BULUNAMADI'} · ikon: {icon or 'yok'}")
+    if any(appmod.resolve(i, t) is None for i, t in s.apps):
+        print("  (kullanılabilecek kimlikler: uv run pc-panel --uygulamalar)")
     print(f"Kısayollar ({len(s.shortcuts)}):")
     for sc in s.shortcuts:
         steps = " → ".join(f"{st.kind}={st.value}" for st in sc.steps)
@@ -516,9 +589,35 @@ def check_config() -> int:
     return 0
 
 
+def list_apps() -> int:
+    """Uygulamalar sayfasına / `uygulama =` kısayoluna yazılabilecek kimlikler."""
+    if WINDOWS:
+        rows = sorted(appmod.start_apps(), key=lambda x: x[0].casefold())
+        print(f"Başlat menüsü uygulamaları ({len(rows)}). Ayarda ad (\"steam\", \"Visual Studio Code\") ya da AppID "
+              "yazılabilir:\n")
+        for name, aumid in rows:
+            print(f"  {name:<40} {aumid}")
+        return 0
+    seen: dict[str, str] = {}
+    for base in appmod.DATA_DIRS:
+        d = base / "applications"
+        if d.is_dir():
+            for p in sorted(d.glob("*.desktop")):
+                if p.stem not in seen:
+                    info = appmod.read_desktop(p)
+                    if info and info.get("NoDisplay", "").lower() != "true":
+                        seen[p.stem] = info.get("Name[tr]") or info.get("Name") or ""
+    print(f"Masaüstü uygulamaları ({len(seen)}). Ayara kimlik (soldaki) yazılır:\n")
+    for app_id, name in sorted(seen.items(), key=lambda x: x[1].casefold()):
+        print(f"  {app_id:<45} {name}")
+    return 0
+
+
 async def run(args: argparse.Namespace) -> int:
     if args.ayar_kontrol:
         return check_config()
+    if args.uygulamalar:
+        return list_apps()
     media = MediaWatcher()
     await media.connect()
     if args.komut:
@@ -532,6 +631,34 @@ async def run(args: argparse.Namespace) -> int:
     return await serve(args, media)
 
 
+def setup_output(log_file: str | None, console: bool = False) -> None:
+    """Çıktı her sistemde UTF-8 olsun (Windows'ta yönlendirilen çıktı cp1254 olur, Türkçe harf / █ düşürür);
+    --gunluk verilirse çıktı dosyaya gider (pythonw'da stdout yoktur)."""
+    if log_file:
+        try:
+            if os.path.getsize(log_file) > LOG_MAX_BYTES:
+                os.replace(log_file, log_file + ".1")
+        except OSError:
+            pass
+        os.makedirs(os.path.dirname(os.path.abspath(log_file)), exist_ok=True)
+        f = open(log_file, "a", encoding="utf-8", buffering=1)  # satır tamponlu
+        sys.stdout = sys.stderr = f
+        return
+    for stream in (sys.stdout, sys.stderr):
+        if stream is not None and hasattr(stream, "reconfigure"):
+            try:
+                stream.reconfigure(encoding="utf-8", errors="replace")
+            except (OSError, ValueError):
+                pass
+    if WINDOWS and console:  # eski konsolda (conhost) ANSI renk / imleç kodları çalışsın
+        import ctypes
+        k32 = ctypes.windll.kernel32
+        h = k32.GetStdHandle(-11)
+        mode = ctypes.c_uint32()
+        if k32.GetConsoleMode(h, ctypes.byref(mode)):
+            k32.SetConsoleMode(h, mode.value | 0x0004)  # ENABLE_VIRTUAL_TERMINAL_PROCESSING
+
+
 def main() -> None:
     p = argparse.ArgumentParser(prog="pc-panel", description="PC Panel bilgisayar servisi")
     mode = p.add_mutually_exclusive_group()
@@ -540,11 +667,15 @@ def main() -> None:
     mode.add_argument("--once", action="store_true", help="tek ölçüm yap ve çık")
     mode.add_argument("--komut", metavar="KOMUT[:DEĞER]", help="etkin çalara medya komutu gönder")
     mode.add_argument("--ayar-kontrol", action="store_true", help="ayar dosyasını denetle ve özetle")
-    p.add_argument("--port", help="seri port (varsayılan: kartın /dev/serial/by-id yolu)")
+    mode.add_argument("--uygulamalar", action="store_true", help="Uygulamalar sayfasına yazılabilecek kimlikler")
+    p.add_argument("--port", help="seri port, ör. /dev/ttyACM0 ya da COM4 (varsayılan: kart USB kimliğiyle bulunur)")
     p.add_argument("--baud", type=int, default=DEFAULT_BAUD, help=f"baud hızı (varsayılan {DEFAULT_BAUD})")
     p.add_argument("--debug", action="store_true", help="gönderilen mesajları ve kart günlüğünü yazdır")
     p.add_argument("--aralik", type=float, default=1.0, help="ölçüm aralığı, saniye (varsayılan 1)")
+    p.add_argument("--gunluk", metavar="DOSYA", help="çıktıyı bu dosyaya yaz (Windows'ta pythonw ile penceresiz "
+                                                      "çalışırken; 2 MB'ı aşınca .1 olarak saklanır)")
     args = p.parse_args()
+    setup_output(args.gunluk, console=args.konsol)
     try:
         sys.exit(asyncio.run(run(args)))
     except KeyboardInterrupt:

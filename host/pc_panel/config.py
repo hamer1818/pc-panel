@@ -1,4 +1,5 @@
-"""Ayar dosyası: ~/.config/pc-panel/ayarlar.toml (örnek ve açıklamalar: deploy/ayarlar.ornek.toml).
+"""Ayar dosyası: Linux ~/.config/pc-panel/ayarlar.toml · Windows %APPDATA%/pc-panel/ayarlar.toml
+(örnek ve açıklamalar: deploy/ayarlar.ornek.toml, Windows için deploy/ayarlar.ornek.windows.toml).
 
 Dosya yoksa örnek dosya kullanılır. Servis dosyanın değişme zamanını birkaç saniyede bir yoklar; değişince yeniden
 okur. Hatalı dosyada son geçerli ayarlarla devam edilir. Tek tek hatalı kısayollar atlanır ve günlüğe yazılır.
@@ -8,13 +9,24 @@ from __future__ import annotations
 
 import os
 import re
+import sys
 import tomllib
 from dataclasses import dataclass, field
 from pathlib import Path
 
-CONFIG_DIR = Path(os.environ.get("XDG_CONFIG_HOME") or Path.home() / ".config") / "pc-panel"
+WINDOWS = sys.platform == "win32"
+if WINDOWS:
+    CONFIG_DIR = Path(os.environ.get("APPDATA") or Path.home() / "AppData" / "Roaming") / "pc-panel"
+else:
+    CONFIG_DIR = Path(os.environ.get("XDG_CONFIG_HOME") or Path.home() / ".config") / "pc-panel"
 CONFIG_PATH = CONFIG_DIR / "ayarlar.toml"
-EXAMPLE_PATH = Path(__file__).resolve().parents[2] / "deploy" / "ayarlar.ornek.toml"
+EXAMPLE_PATH = (Path(__file__).resolve().parents[2] / "deploy"
+                / ("ayarlar.ornek.windows.toml" if WINDOWS else "ayarlar.ornek.toml"))
+SYSTEM_DRIVE = (os.environ.get("SystemDrive") or "C:") + "\\"
+
+# Uygulama kimliği: Linux'ta .desktop adı; Windows'ta Başlat menüsü adı ya da AppID ("Visual Studio Code",
+# "SpotifyAB.SpotifyMusic_…!Spotify", "{GUID}\Steam\Steam.exe"). Kimlik yalnızca listede aranır, çalıştırılmaz.
+APP_ID_RE = r"[\w .+\-!{}\\:;()&']{1,200}" if WINDOWS else r"[\w.+-]{1,80}"
 
 MAX_TILES = 12
 MAX_SERVERS = 8
@@ -69,7 +81,7 @@ DEFAULT_CMD_EXCLUDE = frozenset({
 class Settings:
     lock_clock: bool = True
     lock_min: int = 10
-    disks: tuple[str, ...] = ("/",)
+    disks: tuple[str, ...] = (SYSTEM_DRIVE,) if WINDOWS else ("/",)
     notif_on: bool = True
     notif_locked: bool = False
     notif_secs: int = 6
@@ -191,6 +203,20 @@ def _shortcut(d: dict, i: int, used: set[str], warn: list[str]) -> Shortcut | No
                     steps=tuple(steps), toggle=toggle)
 
 
+def _disk(path: object) -> str | None:
+    """Geçerli bağlama noktası / sürücü ya da None. Windows: "C:", "C:\\", "D:/" → "C:\\"; "/" → sistem sürücüsü
+    (Linux ayar dosyası olduğu gibi kopyalanırsa da çalışsın)."""
+    if not isinstance(path, str) or not path:
+        return None
+    if WINDOWS:
+        if path == "/":
+            return SYSTEM_DRIVE
+        if re.fullmatch(r"[A-Za-z]:[\\/]?", path):
+            return path[0].upper() + ":\\"
+        return path if re.match(r"^[A-Za-z]:[\\/]", path) else None
+    return path if path.startswith("/") else None
+
+
 def parse(data: dict) -> tuple[Settings, list[str]]:
     """TOML sözlüğünden ayarlar; ikinci değer uyarı listesi."""
     warn: list[str] = []
@@ -199,10 +225,12 @@ def parse(data: dict) -> tuple[Settings, list[str]]:
     sy = data.get("sistem", {})
     dl = sy.get("diskler")
     if dl is not None:
-        if isinstance(dl, list) and dl and all(isinstance(x, str) and x.startswith("/") for x in dl):
-            s.disks = tuple(dl[:2])
+        disks = [_disk(x) for x in dl] if isinstance(dl, list) else []
+        if disks and all(disks):
+            s.disks = tuple(dict.fromkeys(disks))[:2]
         else:
-            warn.append("sistem.diskler en çok 2 bağlama noktası listesi olmalı, ör. [\"/\", \"/home\"]")
+            warn.append("sistem.diskler en çok 2 bağlama noktası listesi olmalı, ör. [\"/\", \"/home\"]"
+                        + (" ya da [\"C:\", \"D:\"]" if WINDOWS else ""))
 
     k = data.get("kilit_ekrani", {})
     s.lock_clock = bool(k.get("saat", s.lock_clock))
@@ -289,7 +317,7 @@ def parse(data: dict) -> tuple[Settings, list[str]]:
     for x in raw_apps[:MAX_APPS]:
         app_id, title = (x, "") if isinstance(x, str) else ((x.get("id"), x.get("ad", "")) if isinstance(x, dict)
                                                              else (None, ""))
-        if isinstance(app_id, str) and re.fullmatch(r"[\w.+-]{1,80}", app_id) and isinstance(title, str):
+        if isinstance(app_id, str) and re.fullmatch(APP_ID_RE, app_id) and isinstance(title, str):
             s.apps.append((app_id, title.strip()[:TITLE_MAX]))
         else:
             warn.append(f"uygulamalar: geçersiz kayıt {x!r} (\"kimlik\" ya da {{id = \"kimlik\", ad = \"Ad\"}})")

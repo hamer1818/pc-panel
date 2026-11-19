@@ -207,6 +207,61 @@ Kullanıcı "800 özellik değil, her gün kullanacağım şeyler" dedi; yalnız
 
 ---
 
+## Faz 8 — Windows 11 desteği (aynı kart, aynı servis)
+Amaç: bilgisayar Windows 11 ile açıldığında da panel Linux'taki gibi çalışsın; Linux kurulumu bozulmasın.
+
+- [x] **[CLAUDE]** Servisi iki sisteme ayır: `pc_panel/backend.py` + `pc_panel/win/` (medya GSMTC, ses Core Audio,
+      bildirimler, uygulamalar + gerçek ikonlar, kilit / kilitle / ekran görüntüsü, CPU adı / MHz / sıcaklık);
+      Windows'a özgü bağımlılıklar `sys_platform` işaretli. Linux modülleri değişmeden kaldı.
+- [x] **[CLAUDE]** Ortak düzeltmeler: COM portu VID:PID ile (COM4), olay kanalı Windows'ta 127.0.0.1:47613,
+      `--gunluk` (penceresiz çalışma), WM_ENDSESSION'da "bye", alt süreçlerde konsol penceresi yok, UTF-8 çıktı,
+      `--uygulamalar` listesi, Windows'ta sürücü harfli diskler (`C:`).
+- [x] **[CLAUDE]** Kapak / ikon aktarımı: Windows'ta CRC hataları giderildi (ikili bloklar sıralı + yavaşlatılmış).
+- [x] **[CLAUDE]** `deploy/kur.ps1` (Görev Zamanlayıcı, yönetici yok), `deploy/ayarlar.ornek.windows.toml`,
+      `deploy/pc-panel.ps1` (PowerShell uzun komut bildirimi), `claude_hooks.py` Windows yolları, `.gitattributes`.
+- [x] **[CLAUDE]** Deneme (Windows, kart COM4): stat / GPU / medya (Spotify) / ses / GitHub / Claude kullanımı /
+      kısayollar / 4 uygulama ikonu / kapak karta gitti; `pc-panel-olay bildir` ve Claude hook olayları (çalışıyor →
+      izin bekliyor → bitti) karta ulaştı; WM_ENDSESSION'da servis "kapanıyor" deyip 0 ile çıktı.
+      Linux yolları Windows'ta `sys.platform="linux"` benzetimiyle denetlendi (ayar, disk, soket, kısayol aynı).
+- [x] **[SEN]** Windows'ta kalıcı kurulum (yönetici gerekmez) → kullanıcı çalıştırdı; "PC Panel" görevi Running,
+      hook'lar kurulu, ayar dosyası oluştu. Proje klasöründe PowerShell aç:
+      ```powershell
+      powershell -ExecutionPolicy Bypass -File deploy\kur.ps1
+      ```
+      Bu: `%APPDATA%\pc-panel\ayarlar.toml` oluşturur, Claude Code hook'larını ekler (önce yedek alır), "PC Panel"
+      görevini ekleyip başlatır. Günlük: `Get-Content "$env:LOCALAPPDATA\pc-panel\pc-panel.log" -Wait -Tail 20`
+- [ ] **[SEN]** (İsteğe bağlı) CPU sıcaklığı için LibreHardwareMonitor:
+      ```powershell
+      winget install LibreHardwareMonitor.LibreHardwareMonitor
+      ```
+      Programı aç (yönetici izni ister) → Options: "Start Minimized", "Minimize To Tray", "Run On Windows Startup"
+      işaretle. Açık olduğu sürece kartta CPU °C görünür (servis 30 sn içinde kendiliğinden bağlanır).
+- [ ] **[SEN]** (İsteğe bağlı) PowerShell'de 30 sn'den uzun komut bitince bildirim:
+      ```powershell
+      Set-ExecutionPolicy -Scope CurrentUser RemoteSigned
+      powershell -ExecutionPolicy Bypass -File deploy\kur.ps1 -PowerShell
+      ```
+- [x] **[SEN]** Kartta gözle kontrol (Windows) → kullanıcı: "her şey düzgün çalışıyor". Günlükte karttan
+      play_pause ×2, seek_rel +10, Spotify / VS Code açma, Terminal / Dosyalar / Ayarlar / sessiz ×2 / ekran
+      görüntüsü kısayolları "tamam", Claude "izin bekliyor" bildirimi geldi (00:16:09–00:16:50):
+      1. Sistem: CPU / GPU / RAM / disk "Sistem C:" / ağ değerleri canlı mı?
+      2. Medya: Spotify'da şarkı, kapak, ⏮ ⏯ ⏭, ±10 sn, ilerleme çubuğuna dokunarak sarma, ses kaydırıcısı.
+      3. Uygulamalar: Steam, VS Code, Spotify, Discord ikonları; dokununca açılıyor / öne geliyor mu?
+      4. Kısayollar: kilitle (Win+L gibi), mikrofon, ekran görüntüsü (Resimler\Ekran Görüntüleri), sesi kapat,
+         Terminal, GitHub, Dosya Gezgini, Ayarlar.
+      5. Kilit: Win+L → kilit saati; kilidi açınca panel geri geliyor mu?
+      6. Bildirim: Windows'ta bir bildirim gelince (ör. Discord mesajı) kartta balon çıkıyor mu?
+      7. Bilgisayarı yeniden başlat (Windows) → panel kendiliğinden geliyor mu? Sonra CachyOS'a geç → Linux'ta da
+         eskisi gibi çalışıyor mu? (Linux tarafında `cd host && uv sync` bir kez gerekebilir: kilit dosyası güncellendi.)
+
+**Bitti ölçütü:** Windows 11 açılınca hiçbir şeye dokunmadan panel çalışıyor; CachyOS'ta eskisi gibi çalışıyor.
+
+✅ **2026-11-20 — kullanıcı doğruladı:** panel Windows 11'de kararlı çalışıyor (değerler, medya + kapak,
+uygulamalar, kısayollar, Claude oturumları; görevden kendiliğinden başlıyor). Linux için kalan tek adım:
+CachyOS açılışında `cd host && uv sync` ve kısa bir göz kontrolü.
+
+---
+
 ## İlerleme özeti
 | Faz | Durum |
 |-----|-------|
@@ -218,3 +273,4 @@ Kullanıcı "800 özellik değil, her gün kullanacağım şeyler" dedi; yalnız
 | 5 Medya | ✅ bitti (2026-11-17); karttan çalar seçimi isteğe bağlı, yapılmadı |
 | 6 Kalıcı kurulum | ✅ bitti (2026-11-17) |
 | 7 Ekstralar | 7A + 7B + 7D + 7E kodlandı, kart 0.10.0 (2026-11-17) — bir haftalık kullanım; 7C sonra |
+| 8 Windows 11 | ✅ Windows'ta kuruldu ve kullanıcı onayladı (2026-11-20); sıradaki CachyOS açılışında `uv sync` + kısa kontrol |

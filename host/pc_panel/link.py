@@ -14,23 +14,29 @@ import glob
 import json
 import os
 import queue
+import sys
 import threading
 import time
 
 import serial
 from serial.tools import list_ports
 
+WINDOWS = sys.platform == "win32"
 CARD_VID, CARD_PID = 0x1A86, 0x55D3  # WCH CH343 (kartın USB-UART girişi)
 DEFAULT_BAUD = 921600
 RECONNECT_S = 2.0
+PACE_MIN, PACE_CHUNK, PACE_RATIO = 4096, 1024, 0.85  # yalnızca Windows, bkz. _write_paced
 
 
 def find_port(preferred: str | None) -> str | None:
+    ports = list_ports.comports()
     if preferred:
+        if WINDOWS:  # "COM4" bir dosya yolu değil; takılı portlar arasında mı diye bakılır
+            return next((p.device for p in ports if p.device.upper() == preferred.upper()), None)
         return preferred if os.path.exists(preferred) else None
-    # Kart USB kimliğiyle (VID:PID) bulunur; varsa kalıcı /dev/serial/by-id yolu tercih edilir
-    # (ttyACM numarası takılış sırasına göre değişebilir).
-    for p in list_ports.comports():
+    # Kart USB kimliğiyle (VID:PID) bulunur. Linux'ta varsa kalıcı /dev/serial/by-id yolu tercih edilir
+    # (ttyACM numarası takılış sırasına göre değişebilir); Windows'ta COM numarası zaten kalıcıdır.
+    for p in ports:
         if p.vid == CARD_VID and p.pid == CARD_PID:
             for link in glob.glob("/dev/serial/by-id/*"):
                 if os.path.realpath(link) == os.path.realpath(p.device):
@@ -67,7 +73,11 @@ class SerialLink:
             # açmışsa açılmaz. İki okuyucu aynı portta birbirinin verisini çalıp bağlantıyı koparıyordu.
             ser = serial.Serial(port, self.baud, timeout=0.2, write_timeout=5, exclusive=True)
         except (serial.SerialException, OSError) as e:
-            if "lock" in str(e).lower() or "busy" in str(e).lower():
+            text = str(e).lower()
+            # Linux: "Could not exclusively lock port" / "busy". Windows: PermissionError(13, "Erişim engellendi",
+            # None, 5) — COM portları Windows'ta zaten tek programa açılır.
+            if "lock" in text or "busy" in text or "permissionerror" in text or "winerror 5" in text \
+                    or getattr(e, "errno", None) == 13:
                 if not self._busy_warned:
                     self.log("port başka bir program tarafından kullanılıyor (başka bir pc-panel ya da seri monitör "
                              "açık mı?); boşalması bekleniyor…")
@@ -109,10 +119,31 @@ class SerialLink:
             except queue.Empty:
                 continue
             try:
-                ser.write(data)
+                if WINDOWS and len(data) > PACE_MIN:
+                    self._write_paced(ser, data)
+                else:
+                    ser.write(data)
             except (serial.SerialException, serial.SerialTimeoutException, OSError, TypeError):
                 self._loop.call_soon_threadsafe(self._lost, ser)
                 return
+
+    def _write_paced(self, ser: serial.Serial, data: bytes) -> None:
+        """Büyük ikili blokları (kapak, ikon) hattın ~%85'i hızında, 1 KB'lık parçalarla yazar.
+
+        Windows'un USB-seri sürücüsü baytları boşluksuz, tam baud hızında basıyor; kart o sırada sayfa kuruyor ya da
+        ekranı çiziyorsa UART tamponu taşıp birkaç bayt düşüyordu (CRC hatası, ör. 115183/115200 bayt). Linux'ta
+        aynı kapak, paketler arasındaki doğal boşluklarla ≈1,5 sn'de gidiyor; burada da o hız taklit edilir.
+        """
+        period = PACE_CHUNK / (self.baud / 10 * PACE_RATIO)  # 921600 baud: ≈13 ms / 1 KB
+        nxt = time.perf_counter()
+        for i in range(0, len(data), PACE_CHUNK):
+            if self.ser is not ser:
+                return
+            ser.write(data[i:i + PACE_CHUNK])
+            nxt += period
+            delay = nxt - time.perf_counter()
+            if delay > 0:
+                time.sleep(delay)
 
     def _lost(self, ser: serial.Serial) -> None:
         with self._lock:

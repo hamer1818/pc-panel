@@ -15,6 +15,8 @@ import time
 from dbus_fast import BusType, Message, MessageType, Variant
 from dbus_fast.aio import MessageBus
 
+from . import art
+
 MPRIS_PREFIX = "org.mpris.MediaPlayer2."
 MPRIS_PATH = "/org/mpris/MediaPlayer2"
 PLAYER_IFACE = "org.mpris.MediaPlayer2.Player"
@@ -143,6 +145,10 @@ class MediaWatcher:
                 "seek": bool(p.get("CanSeek")),
             },
         }
+
+    async def fetch_art(self, url: str) -> bytes | None:
+        """Kapak adresi (https / file://) → 240×240 RGB565 ya da None."""
+        return await asyncio.to_thread(art.load, url)
 
     # --- Kontrol komutları (Faz 3'te karttan gelen dokunmalar bunları çağıracak) ---
 

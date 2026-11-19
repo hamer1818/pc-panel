@@ -59,7 +59,7 @@ class ClaudeTracker:
         if not sid:
             return []
         now = time.monotonic()
-        project = os.path.basename(ev.get("cwd", "").rstrip("/")) or "?"
+        project = os.path.basename(ev.get("cwd", "").rstrip("/\\")) or "?"  # Windows: C:\…\proje
         if ev.get("acct"):  # ikinci hesap (CLAUDE_CONFIG_DIR=~/.claude-<ad>)
             project = f"{project} · {ev['acct']}"
         s = self.sessions.get(sid)

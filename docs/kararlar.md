@@ -2,6 +2,66 @@
 
 Her karar: tarih · karar · düşünülen seçenekler · neden.
 
+## 2026-11-20 · Faz 8: tek kod tabanı, iki işletim sistemi (Linux + Windows 11)
+- İstek: bilgisayarda CachyOS ve Windows 11 ikisi de var; Windows açılınca kartta hiçbir değer gelmiyordu
+  (servis Windows'ta hiç başlayamıyordu: `dbus_fast`, `os.getuid`, Unix soketi, `add_signal_handler`, `wpctl`…).
+- Seçenekler: ayrı bir Windows servisi (C# / ayrı depo) · aynı Python servisi, işletim sistemine özgü modüller ayrı.
+- Neden aynı servis: protokol, kart yazılımı, ayar biçimi, Claude/GitHub/sunucu/git mantığı zaten taşınabilir;
+  yalnızca 6 dokunma noktası farklı. `backend.py` seçer, Windows karşılıkları `pc_panel/win/` altında, Linux
+  modülleri olduğu gibi kaldı. Bağımlılıklar `sys_platform` işaretiyle (Linux'ta winrt/pycaw kurulmaz).
+- Kart yazılımı değişmedi (yeniden yükleme gerekmez).
+
+## 2026-11-20 · Windows medya: GSMTC (winrt); ses: pycaw; bildirimler: UserNotificationListener
+- Medya: GlobalSystemMediaTransportControlsSessionManager — sistemin ses penceresindeki medya kutusunun kaynağı;
+  Spotify, tarayıcılar, Medya Oynatıcı… MPRIS'in Windows karşılığı. Kapak adres değil akış: `art_url` yerine
+  parça bilgisinden anahtar ("gsmtc:…"), servis kapağı `media.fetch_art()` ile ister (Linux'ta da aynı ad).
+- Ses: Core Audio IAudioEndpointVolume (pycaw); her çağrıda varsayılan aygıt yeniden alınır (kulaklık değişimi).
+- Bildirimler: UserNotificationListener paketlenmemiş uygulamada da izin verdi (bu bilgisayarda "Allowed").
+  Olay aboneliği paketsiz uygulamalarda güvenilmez → saniyede bir liste okunur, yeni kimlikler gönderilir.
+- COM: winrt + comtypes aynı süreçte → ikisi de MTA (`sys.coinit_flags = 0`, `win/__init__.py`).
+
+## 2026-11-20 · Windows'ta CPU sıcaklığı yalnızca LibreHardwareMonitor ile
+- Windows, Ryzen / Core sıcaklığını sürücüsüz vermiyor; bu bilgisayarda ACPI termal bölge de yok (WMI boş).
+- Seçenekler: servisi yönetici yapıp sürücü yüklemek (LibreHardwareMonitorLib + pythonnet) · LibreHardwareMonitor
+  açıksa onun WMI sağlayıcısını okumak · sıcaklığı göstermemek.
+- Neden WMI: servis yönetici olmadan çalışmaya devam eder; LHM kurulu değilse kart "-" gösterir, başka bir şey
+  bozulmaz. 30 sn'de bir yeniden bağlanmayı dener (LHM sonradan açılırsa kendiliğinden gelir).
+- Saat hızı: psutil Windows'ta taban hızı veriyor → Görev Yöneticisi'nin yöntemi (PDH "% Processor Performance"
+  × taban MHz), yönetici gerekmez.
+
+## 2026-11-20 · Windows'ta ikili bloklar yavaşlatılır ve sıraya konur
+- Sorun: Windows'ta kapak ve ikonlar sürekli "alınamadı" (CRC). Tanı: kartın kendi zaman aşımı satırı
+  `115183 / 115200 bayt` → kart meşgulken (sayfa kurma, ikon işleme) akışın ortasından birkaç bayt düşüyor.
+  Tek başına gönderilen kapak sorunsuz. Linux'ta aynı kapak ≈1,5 sn, Windows'ta ≈1,27 sn sürüyor: Windows'un
+  USB-seri sürücüsü baytları boşluksuz, tam baud hızında basıyor; Linux'ta paketler arasında doğal boşluk var.
+- Seçenekler: kart yazılımında UART FIFO eşiğini düşürmek (yeniden yükleme gerekir) · baud düşürmek (her şey
+  yavaşlar) · bilgisayar tarafında ikili blokları sıraya koyup yavaşlatmak.
+- Karar: bilgisayar tarafı. (1) İkili bloklar üst üste gönderilmez, her biri kartın onayını bekler; (2) `tiles` /
+  `apps` sonrası 0,5 sn beklenir; (3) Windows'ta 4 KB üstü yazmalar 1 KB parça, hattın %85'i hızında
+  (Linux süresiyle aynı). Deneme: servis açılışında kapak + 4 ikon ilk seferde alındı, yeniden deneme yok.
+  (1) ve (2) Linux'ta da geçerli, zararsız. Kart yazılımı değişmedi.
+
+## 2026-11-20 · Windows uygulama kimlikleri: Başlat menüsü adı ya da AppID; Linux kimlikleri de tanınır
+- Kaynak: kabuğun `shell:AppsFolder` klasörü (Get-StartApps'ın kaynağı) — ad, AppID ve varsa exe yolu tek sorguda.
+- Eşleşme: tam AppID → bilinen Linux kimliği tablosu (`com.microsoft.VSCode` → Visual Studio Code, `org.kde.konsole`
+  → Terminal …) → ad. Böylece Linux ayar dosyası kopyalansa da çoğu uygulama bulunur.
+- İkon: IShellItemImageFactory (Gezgin'deki ikonun aynısı, alfa önçarpımsız — denendi). Başlatma: exe'nin penceresi
+  açıksa öne getirilir (kstart davranışı), değilse `shell:AppsFolder\<AppID>` açılır.
+- Windows'ta kimlik kuralı genişletildi (boşluk, `!`, `{}`, `\`): kimlik yalnızca listede aranır, çalıştırılmaz.
+
+## 2026-11-20 · Windows'ta olay kanalı 127.0.0.1:47613 TCP
+- Python Windows'ta AF_UNIX açamıyor. Seçenekler: adlandırılmış kanal (pywin32 gerekir) · yerel TCP.
+- Neden TCP: standart kütüphane yeter (`pc-panel-olay` hızlı açılmalı), PowerShell'den de doğrudan yazılabiliyor.
+  Yalnızca 127.0.0.1'e bağlanır. Olaylar yalnızca karta bildirim / Claude durumu getirir, komut çalıştırmaz;
+  bu yüzden ek kimlik doğrulama konmadı.
+
+## 2026-11-20 · Windows'ta kalıcı kurulum: Görev Zamanlayıcı + pythonw
+- Seçenekler: Windows hizmeti (oturum 0'da çalışır, medya / bildirim / masaüstüne erişemez; yönetici gerekir) ·
+  Başlangıç klasörü kısayolu (çökünce yeniden başlamaz) · Görev Zamanlayıcı'da kullanıcı görevi.
+- Neden görev: kullanıcı oturumunda çalışır (GSMTC, bildirimler, ses), yönetici gerekmez, süre sınırı kaldırılabilir,
+  çökünce yeniden başlar. Eklenemezse betik Başlangıç klasörüne düşer. Penceresiz çalıştığı için çıktı
+  `--gunluk` dosyasına; kapanış Ctrl+C yerine WM_ENDSESSION ile yakalanıp karta "bye" gönderilir.
+
 ## 2026-11-17 · Faz 7E: uygulamalar ayrı sayfada, gerçek ikonlarla
 - İstek: Steam, Epic Games, Antigravity, VS Code, Zen, Discord, Spotify, RustDesk, AnyDesk, Thunderbird için hızlı başlatma.
 - Seçenekler: mevcut Kısayollar sayfasına eklemek (12 kutu sınırı, 8'i dolu; Font Awesome'da Epic, Antigravity,

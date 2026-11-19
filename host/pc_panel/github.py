@@ -14,6 +14,7 @@ from datetime import datetime, timezone
 
 AUTO_REPOS = 6
 TIMEOUT_S = 20
+NO_WINDOW = getattr(subprocess, "CREATE_NO_WINDOW", 0)  # Windows: konsol penceresi açılmasın
 NOTIFY_SUCCESS_EVENTS = {"push", "pull_request", "workflow_dispatch", "release"}
 
 
@@ -23,7 +24,8 @@ class GhError(Exception):
 
 def _gh(path: str):
     try:
-        r = subprocess.run(["gh", "api", path], capture_output=True, text=True, timeout=TIMEOUT_S)
+        r = subprocess.run(["gh", "api", path], capture_output=True, text=True, encoding="utf-8",
+                           errors="replace", timeout=TIMEOUT_S, creationflags=NO_WINDOW)
     except FileNotFoundError:
         raise GhError("gh kurulu değil") from None
     except subprocess.TimeoutExpired:

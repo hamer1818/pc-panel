@@ -2,6 +2,41 @@
 
 En yeni kayıt en üstte.
 
+## 2026-11-20 — Faz 8: Windows 11 desteği
+- Kullanıcı: bilgisayarda CachyOS ve Windows 11 ikisi de var; Windows'ta kartta hiçbir değer gelmiyor. İstek: proje
+  iki sistemde de düzgün çalışsın. Bu oturum Windows'ta (depo: `C:\Users\Hamza\Desktop\projeler\pc-panel`).
+- Neden gelmiyordu: Windows'ta servis hiç kurulu/çalışır değildi ve çalışsa da başlayamazdı (`dbus_fast` importu,
+  `os.getuid()`, Unix soketi, `loop.add_signal_handler`, `psutil.sensors_temperatures`, `wpctl`, `kstart`).
+- Ortam: Python 3.12.10 vardı, `uv` yoktu → `pip install uv` (kullanıcı alanı), `uv sync` (winrt 4.2, pycaw, comtypes).
+- Yoklama: kart COM4 (`1A86:55D3`, Windows'un kendi sürücüsü), NVML çalışıyor, GSMTC Spotify'ı görüyor, bildirim
+  dinleyici izni "Allowed", kabuk ikonları (IShellItemImageFactory) 64 px alfa ile düzgün, WMI var ama CPU sıcaklığı
+  kaynağı yok (termal bölge yok, LibreHardwareMonitor kurulu değil).
+- Yazıldı: `backend.py`, `win/` (media, audio, notify, apps, session, sensors), `deploy/kur.ps1`,
+  `deploy/ayarlar.ornek.windows.toml`, `deploy/pc-panel.ps1`, `.gitattributes`; ortak dosyalarda Windows dalları
+  (ayrıntı: `02-mimari.md` tablo, `kararlar.md` 2026-11-20).
+- **Sorun:** Windows'ta kapak ve ikonlar sürekli "alınamadı". Tanı betikleri: tek başına kapak geçiyor; kart meşgulken
+  akıştan birkaç bayt düşüyor (`115183 / 115200`). Windows sürücüsü baytları boşluksuz basıyor (1,27 sn; Linux 1,5 sn).
+  Düzeltme: ikili bloklar sıralı + onay beklemeli, sayfa kurulumundan sonra 0,5 sn, Windows'ta %85 hızla 1 KB parça.
+  Sonrasında servis açılışında kapak + 4 ikon ilk denemede alındı. (Kullanıcı kartın zarar görmesinden endişelendi:
+  denemeler yalnızca normal hızda seri veri, yükleme / voltaj yok; yük testleri yine de bırakıldı.)
+- Bulunan diğer hatalar: `settings.json` Windows'ta cp1254 ile okunup yazılacaktı (Türkçe bozulurdu) → UTF-8;
+  PowerShell borusu BOM ekliyor → `pc-panel-olay` BOM'u atıyor; ev klasöründe erişimi kapalı bağlantılar git
+  taramasını düşürebilirdi → yakalanıyor; Pillow 14'te kalkacak `getdata()` → `tobytes()`.
+- Denendi (Windows, kart takılı): bütün mesaj türleri karta gidiyor; `pc-panel-olay bildir`, Claude hook olayları,
+  WM_ENDSESSION ile kapanış (çıkış 0), ses okuma/yazma (aynı düzey), kilit algılama, git taraması.
+  Linux yolları `sys.platform="linux"` benzetimiyle denetlendi. Medya komutları (durdur / ileri) ve kısayollar
+  kullanıcının müziğini / ekranını etkilememek için denenmedi → kullanıcı testi.
+- Yapılamayan: `kur.ps1` Claude tarafından çalıştırılmadı (kalıcı görev + Claude ayarlarını değiştiriyor; izin
+  verilmedi) → plan Faz 8 [SEN]. Statik denetim aracı (pyflakes) çalıştırma izni de verilmedi.
+- Kullanıcı `deploy\kur.ps1`'i kendisi çalıştırdı: "PC Panel" görevi Running, 6 Claude hook'u kurulu,
+  `%APPDATA%\pc-panel\ayarlar.toml` oluştu. Günlükte karttan medya komutları, uygulama açma, 5 kısayol ve Claude
+  izin bildirimi "tamam". Kullanıcı: "her şey düzgün çalışıyor".
+- **Kullanıcı doğrulaması (2026-11-20):** panel Windows 11'de kararlı çalışıyor. Sistem değerleri, medya ve kapak,
+  uygulama ikonları, kısayollar ve Claude oturumları kartta; servis Görev Zamanlayıcı'dan kendiliğinden başlıyor.
+  **Faz 8 Windows tarafı tamamlandı.** Commit atıldı ve GitHub'a gönderildi.
+- **Sıradaki:** CachyOS'a geçince `cd host && uv sync` (kilit dosyası değişti) ve kısa bir kontrol;
+  istenirse LibreHardwareMonitor (Windows'ta CPU °C).
+
 ## 2026-11-17 — Açık kaynak hazırlığı ve GitHub'da yayın (kart 0.11.0)
 - Kullanıcı kararı: depo public olacak; commit e-postası kişisel Gmail yerine `info@hamza.tr`.
 - Genelleştirme: kartın seri numarası koddan çıktı (port VID:PID ile bulunup by-id yoluna çevriliyor; PlatformIO

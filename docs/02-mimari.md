@@ -10,6 +10,23 @@
 └─────────────────────────────────────────────────────────────┘        └───────────────────────┘
 ```
 
+**İki işletim sistemi (2026-11-20):** aynı servis Linux (KDE Plasma) ve Windows 10/11'de çalışır; kart yazılımı ve
+protokol ortaktır. İşletim sistemine özgü kısımlar `pc_panel/backend.py`'de seçilir:
+
+| İş | Linux | Windows (`pc_panel/win/`) |
+|----|-------|---------------------------|
+| Medya + kapak | MPRIS (D-Bus), kapak adresi (https / file://) | GSMTC (`win/media.py`), kapak oturumun akışından |
+| Ses / mikrofon | `wpctl` | Core Audio, pycaw (`win/audio.py`) |
+| Bildirim yansıtma | D-Bus izleyici | UserNotificationListener, saniyede bir okuma (`win/notify.py`) |
+| Uygulamalar | `.desktop` + ikon teması, `kstart` | `shell:AppsFolder` listesi, kabuk ikonu, pencereyi öne getir / aç (`win/apps.py`) |
+| Kilit durumu, kilitle, ekran görüntüsü | KDE ScreenSaver, `loginctl`, `spectacle` | giriş masaüstü adı, `LockWorkStation`, Win+PrtScn (`win/session.py`) |
+| CPU adı / MHz / sıcaklık | `/proc/cpuinfo`, psutil, `k10temp` | kayıt defteri, PDH sayaçları, LibreHardwareMonitor WMI (`win/sensors.py`) |
+| Olay kanalı | `$XDG_RUNTIME_DIR/pc-panel.sock` | `127.0.0.1:47613` (TCP) |
+| Kapanışta "bye" | SIGTERM / SIGINT | WM_ENDSESSION (görünmez pencere), Ctrl+C / Ctrl+Break |
+| Kalıcı kurulum | systemd kullanıcı servisi (`kur.sh`) | Görev Zamanlayıcı, oturum açılınca `pythonw` (`kur.ps1`) |
+| Ayar dosyası | `~/.config/pc-panel/ayarlar.toml` | `%APPDATA%\pc-panel\ayarlar.toml` |
+| Seri port | `/dev/serial/by-id/…` (VID:PID ile bulunur) | `COMn` (VID:PID ile bulunur) |
+
 ## Bilgisayar servisi (`host/`)
 | Dosya | Görev |
 |-------|-------|
@@ -29,6 +46,8 @@
 | `pc_panel/github.py` | **Faz 7B:** `gh api` ile Actions çalışmaları, PR ve bildirim sayıları, CI geçiş bildirimleri |
 | `pc_panel/servers.py` | **Faz 7B:** HTTP / TCP denetimi, SSL kalan gün, kapandı / düzeldi geçişleri |
 | `pc_panel/alerts.py` | **Faz 7:** sıcaklık / RAM uyarısı (eşik + 5 birim geri dönüş payı), disk doluluk bildirimi |
+| `pc_panel/backend.py` | **Faz 8:** işletim sistemine göre `media` / `audio` / `notify` / `apps` modüllerini seçer |
+| `pc_panel/win/` | **Faz 8:** Windows karşılıkları: `media.py`, `audio.py`, `notify.py`, `apps.py`, `session.py`, `sensors.py` (COM, MTA ile başlatılır; `win/__init__.py`) |
 
 ## Kart yazılımı (`firmware/src/`)
 | Dosya | Görev |
@@ -156,11 +175,14 @@ Sunucu "kapalı" ve SSL < 7 gün uyarıları `stat.warn` alanına eklenir (üst 
 #### Olay soketi (dışarıdan servise)
 `$XDG_RUNTIME_DIR/pc-panel.sock` (Unix akış soketi, 0600). Her bağlantı tek satır JSON gönderir ve kapanır.
 Gönderici: `host/.venv/bin/pc-panel-olay`.
+Windows'ta Python Unix soketi açamadığı için aynı satırlar `127.0.0.1:47613` TCP portuna gider (yalnızca bu
+bilgisayardan erişilebilir; gönderici `host\.venv\Scripts\pc-panel-olay.exe`, PowerShell eklentisi doğrudan porta yazar).
+`pc-panel-olay` stdin'i bayt olarak okur ve UTF-8 BOM'u atar (PowerShell borusu BOM ekleyebiliyor).
 
 | `k` | Kaynak | Alanlar |
 |-----|--------|---------|
 | `claude` | Claude Code hook'ları (`~/.claude/settings.json`: SessionStart, UserPromptSubmit, PostToolUse, Notification, Stop, SessionEnd) | `ev` olay adı, `sid`, `cwd`, `msg`, `ntype`, `acct` hesap etiketi (`~/.claude-<ad>` dizinlerinden gelen hook'larda `--hesap <ad>`; kartta "proje · ad") (istem metni ve araç girdileri gönderilmez) |
-| `cmd` | fish `fish_postexec` (≥ 5 sn süren komutlar; eşik ve hariç liste serviste) | `cmd`, `ms`, `code` |
+| `cmd` | fish `fish_postexec` / Windows'ta PowerShell `prompt` (`deploy/pc-panel.ps1`) (≥ 5 sn süren komutlar; eşik ve hariç liste serviste) | `cmd`, `ms`, `code` |
 | `notif` | `pc-panel-olay bildir "Başlık" "Gövde"` | `title`, `body` |
 
 ## Kurulum (Faz 6)
@@ -168,6 +190,17 @@ Gönderici: `host/.venv/bin/pc-panel-olay`.
 - Servis `host/.venv/bin/pc-panel`'i doğrudan çalıştırır (uv gerekmez).
 - Günlük: `journalctl --user -u pc-panel -f`. Elle çalıştırmak için önce servisi durdurun:
   `systemctl --user stop pc-panel` (port özel modda açılıyor, aynı anda tek program).
+
+### Windows'ta kurulum (Faz 8)
+- `deploy\kur.ps1` (yönetici gerekmez): `uv sync`, `%APPDATA%\pc-panel\ayarlar.toml` (yoksa
+  `deploy/ayarlar.ornek.windows.toml`'dan), Claude Code hook'ları, Görev Zamanlayıcı'da **"PC Panel"** görevi:
+  oturum açılınca `host\.venv\Scripts\pythonw.exe -m pc_panel --gunluk %LOCALAPPDATA%\pc-panel\pc-panel.log`
+  (penceresiz, süre sınırı yok, çökerse 1 dk'da bir yeniden başlar). Görev eklenemezse Başlangıç klasörüne kısayol.
+  `-PowerShell` ile uzun komut bildirimi profile eklenir. `kur.ps1 kaldir` hepsini geri alır (hook'lar hariç).
+- Günlük 2 MB'ı geçince `pc-panel.log.1` olarak saklanır. Elle çalıştırmak için önce görevi durdurun
+  (`Stop-ScheduledTask "PC Panel"`): COM portu Windows'ta da tek programa açılır.
+- Alt süreçler (`git`, `gh`, `powershell`, kısayol komutları) `CREATE_NO_WINDOW` ile başlar: pythonw altında her
+  yoklamada konsol penceresi yanıp sönmesin.
 
 ### Kapak resmi (v1.2 — Faz 5)
 Kapak, satır tabanlı protokolün içinde **tek ikili (binary) blok** olarak gider:
@@ -186,6 +219,10 @@ Kurallar:
 - Kart, ikili veri 2 sn içinde tamamlanmazsa aktarımı bırakır ve satır moduna döner (kaybolan baytlara karşı).
 - Bütün giden mesajlar tek bir **yazıcı iş parçacığından** sırayla yazılır. Böylece kapak verisinin ortasına
   başka bir satır karışmaz ve 115 KB'lık yazma (≈1,3 sn) ana döngüyü bekletmez.
+- **(Faz 8)** İkili bloklar (kapak, ikonlar) asla üst üste gönderilmez: biri gider, kartın `ok` yanıtı (en çok 5 sn)
+  beklenir, sonra diğeri. Sayfa kuran bir mesajdan (`tiles`, `apps`) sonra 0,5 sn beklenir.
+- **(Faz 8, yalnızca Windows)** 4 KB'tan büyük yazmalar 1 KB'lık parçalarla, hattın ~%85'i hızında gider
+  (921600 baud'da ≈13 ms / KB; kapak ≈1,5 sn — Linux'taki süreyle aynı). Neden: `kararlar.md` 2026-11-20.
 - Kaynaklar: `https://…` (Spotify vb., 5 sn zaman aşımıyla indirilir) ve `file://…` (yerel çalarlar,
   tarayıcıların geçici kapakları). Resim ortadan kare kırpılıp 240×240'a küçültülür.
 

@@ -39,11 +39,11 @@ def _read(url: str) -> bytes | None:
 
 def to_rgb565(img: Image.Image) -> bytes:
     """RGB → RGB565, küçük uçlu (LVGL, LV_COLOR_16_SWAP=0)."""
-    img = img.convert("RGB")
-    out = bytearray(img.width * img.height * 2)
+    raw = img.convert("RGB").tobytes()  # getdata() Pillow 14'te kalkıyor
+    out = bytearray(len(raw) // 3 * 2)
     i = 0
-    for r, g, b in img.getdata():
-        v = ((r & 0xF8) << 8) | ((g & 0xFC) << 3) | (b >> 3)
+    for j in range(0, len(raw), 3):
+        v = ((raw[j] & 0xF8) << 8) | ((raw[j + 1] & 0xFC) << 3) | (raw[j + 2] >> 3)
         out[i] = v & 0xFF
         out[i + 1] = v >> 8
         i += 2
@@ -52,7 +52,11 @@ def to_rgb565(img: Image.Image) -> bytes:
 
 def load(url: str) -> bytes | None:
     """Kapağı okur, ortadan kare kırpar, 240×240 RGB565 döndürür. Olmazsa None. (Engelleyici; iş parçacığında çağırın.)"""
-    data = _read(url)
+    return from_bytes(_read(url))
+
+
+def from_bytes(data: bytes | None) -> bytes | None:
+    """Resim dosyası baytları (PNG/JPEG…) → 240×240 RGB565 ya da None. Windows'ta kapak çaların akışından gelir."""
     if not data or len(data) > MAX_DOWNLOAD:
         return None
     try:

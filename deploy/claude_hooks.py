@@ -10,7 +10,8 @@ DİZİN verilmezse bütün Claude Code ayar dizinleri işlenir: ~/.claude ve CLA
 (ad: ".claude-" sonrası, ör. "hesap2"); kartta oturum adının yanında görünür.
 
 Eklenen hook'lar yalnızca `pc-panel-olay claude` çalıştırır: olay adı, oturum kimliği, çalışma klasörü ve
-bildirim metni yerel Unix soketinden servise gider. İstem metni ve araç girdileri gönderilmez. Araç hiçbir şey
+bildirim metni yerel Unix soketinden (Windows'ta 127.0.0.1 TCP) servise gider.
+Windows'ta: host/.venv/Scripts/python.exe deploy/claude_hooks.py kur   (deploy/kur.ps1 bunu kendisi çalıştırır) İstem metni ve araç girdileri gönderilmez. Araç hiçbir şey
 yazdırmaz ve her zaman 0 ile çıkar, yani Claude'un çalışmasını etkilemez.
 Yeni ayarlar yeni açılan Claude Code oturumlarında geçerli olur.
 """
@@ -24,7 +25,15 @@ import time
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-OLAY = ROOT / "host" / ".venv" / "bin" / "pc-panel-olay"
+WINDOWS = sys.platform == "win32"
+OLAY = ROOT / "host" / ".venv" / ("Scripts/pc-panel-olay.exe" if WINDOWS else "bin/pc-panel-olay")
+
+
+def olay_command() -> str:
+    """Hook komutundaki program yolu. Windows'ta Claude Code hook'ları Git Bash ile çalıştırır: ters bölü yerine
+    düz bölü ("C:/…/pc-panel-olay.exe"), boşluk varsa tırnak."""
+    path = OLAY.as_posix()
+    return f'"{path}"' if " " in path else path
 DEFAULT_DIR = Path.home() / ".claude"
 MARK = "pc-panel-olay"
 EVENTS = ["SessionStart", "UserPromptSubmit", "PostToolUse", "Notification", "Stop", "SessionEnd"]
@@ -48,7 +57,7 @@ def account(d: Path) -> str:
 def _load(settings: Path) -> dict:
     if not settings.exists():
         return {}
-    return json.loads(settings.read_text())
+    return json.loads(settings.read_text(encoding="utf-8-sig"))  # Windows'ta varsayılan cp1254 olurdu
 
 
 def _save(settings: Path, data: dict) -> None:
@@ -57,7 +66,7 @@ def _save(settings: Path, data: dict) -> None:
         shutil.copy2(settings, backup)
         print(f"  yedek: {backup}")
     tmp = settings.with_suffix(".json.tmp")
-    tmp.write_text(json.dumps(data, indent=2, ensure_ascii=False) + "\n")
+    tmp.write_text(json.dumps(data, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
     tmp.replace(settings)
 
 
@@ -98,7 +107,7 @@ def handle(cmd: str, d: Path) -> None:
     elif cmd == "kur":
         remove(data)  # eski sürüm varsa yenisiyle değiştir
         hooks = data.setdefault("hooks", {})
-        command = f"{OLAY} claude" + (f" --hesap {acct}" if acct else "")
+        command = f"{olay_command()} claude" + (f" --hesap {acct}" if acct else "")
         for ev in EVENTS:
             group = {"hooks": [{"type": "command", "command": command, "timeout": 3}]}
             if ev == "PostToolUse":
@@ -109,6 +118,8 @@ def handle(cmd: str, d: Path) -> None:
 
 
 def main() -> int:
+    if hasattr(sys.stdout, "reconfigure"):
+        sys.stdout.reconfigure(encoding="utf-8", errors="replace")
     cmd = sys.argv[1] if len(sys.argv) > 1 else "durum"
     if cmd not in ("kur", "kaldir", "durum"):
         print(__doc__)

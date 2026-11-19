@@ -1,0 +1,158 @@
+# PC Panel ayarları — Windows
+#
+# Yer: %APPDATA%\pc-panel\ayarlar.toml  (deploy\kur.ps1, dosya yoksa bu örneği oraya kopyalar)
+# Linux sürümü: deploy/ayarlar.ornek.toml. Bölümler aynı; farkları diskler, uygulama kimlikleri ve kısayollar.
+# Dosyayı kaydedince servis birkaç saniye içinde değişikliği kendiliğinden uygular; yeniden başlatmak gerekmez.
+# Hatalı bir dosya kaydedilirse servis son geçerli ayarlarla devam eder ve hatayı günlüğe yazar:
+#   %LOCALAPPDATA%\pc-panel\pc-panel.log
+# Denetlemek için (host klasöründe):  uv run pc-panel --ayar-kontrol
+
+[sistem]
+diskler = ["C:"]         # Sistem sayfasında gösterilecek en çok 2 sürücü, ör. ["C:", "D:"]
+
+[kilit_ekrani]
+saat = true      # PC kilitliyken (Win+L) büyük saat göster (false: ekran hemen kararır)
+sure_dk = 10     # saat bu kadar dakika sonra kararsın (0: hiç kararmasın). Karta dokununca 20 sn yeniden açılır.
+
+[bildirim]
+# Windows bildirimleri karta yansır. İlk çalışmada izin gerekebilir:
+#   Ayarlar → Gizlilik ve güvenlik → Bildirimler → "Uygulamaların bildirimlerime erişmesine izin ver" açık
+acik = true
+kilitliyken = false      # PC kilitliyken bildirimler karta gelmesin (başkası okumasın)
+sure_sn = 6              # kartta kaç saniye kalsın
+haric = ["Spotify"]      # bu uygulamaların bildirimleri gösterilmez (şarkı bilgisi zaten Medya sayfasında)
+
+[uyari]
+# Bu değerler aşılınca üst şeritte kırmızı uyarı çıkar (5 birim düşünce kaybolur). 0: kapalı.
+# CPU sıcaklığı Windows'ta yalnızca LibreHardwareMonitor açıkken okunur (bkz. docs/01-donanim.md).
+cpu_sicaklik = 90        # °C
+gpu_sicaklik = 85        # °C
+ram_yuzde = 95           # %
+disk_yuzde = 90          # % — disk bu doluluğu geçince bir kez bildirim gelir
+
+[claude]
+# Claude Code oturumları Geliştirici sayfasında; izin isteyince / işi bitince bildirim.
+# Hook'lar: host\.venv\Scripts\python.exe deploy\claude_hooks.py kur   (kaldırmak için: … kaldir)
+acik = true
+bildir_sure_sn = 20      # bundan kısa süren işler bitince bildirim gelmez
+kullanim = true          # her hesabın 5 saatlik penceredeki token kullanımı (yüzde: son 7 günün en yoğun penceresine göre)
+
+[git]
+# Push / commit edilmemiş iş (Geliştirici sayfası, GitHub kutusunun altı). Klasörlerin bir alt seviyesindeki depolar;
+# yalnızca son `gun` gün içinde dokunulanlar sayılır.
+acik = true
+klasorler = ["~"]       # ör. ["~/Desktop/projeler", "D:/kod"]
+gun = 7
+
+[komut]
+# PowerShell'de uzun süren komut bitince bildirim (isteğe bağlı: deploy\kur.ps1 -PowerShell)
+acik = true
+sure_sn = 30
+# haric = ["nvim", "ssh", "claude"]   # yazılırsa varsayılan listenin yerine geçer (editörler, ssh, izleyiciler…)
+
+[github]
+# gh ile (gh auth login yeterli). Son Actions çalışmaları, inceleme bekleyen PR'lar, bildirimler.
+acik = true
+sure_sn = 120
+depolar = []             # boş: en son push yapılan 6 depo. Ör. ["kullanici/depo"]
+
+[sunucular]
+sure_sn = 60             # denetim aralığı
+
+# Sunucu / site sağlığı, en çok 8. Art arda 2 denetimde yanıt yoksa uyarı + bildirim; SSL 7 günden azsa uyarı.
+#   adres = "https://…"      HTTP denetimi (500'den küçük her yanıt "ayakta"), gecikme, SSL kalan gün
+#   tcp   = "makine:port"    yalnızca bağlantı açılıyor mu (ör. SSH)
+# [[sunucu]]
+# ad = "site"
+# adres = "https://ornek.com"
+#
+# [[sunucu]]
+# ad = "sunucu SSH"
+# tcp = "203.0.113.10:22"
+
+[uygulamalar]
+# Uygulamalar sayfası (en çok 15, 5×3). Başlat menüsündeki ad ("steam", "Visual Studio Code") ya da AppID.
+# Ad ve ikon Windows'tan gelir; ad değiştirmek için {id = "kimlik", ad = "Kısa ad"}.
+# Kimlikleri görmek için (host klasöründe):  uv run pc-panel --uygulamalar
+# Linux kimlikleri de çoğunlukla tanınır (ör. "com.microsoft.VSCode" → Visual Studio Code).
+liste = [
+    "steam",
+    {id = "Visual Studio Code", ad = "VS Code"},
+    "spotify",
+    "discord",
+]
+
+# ---------------------------------------------------------------------------------------------------
+# Kısayollar: en çok 12 kutu, yazıldığı sırayla (8'e kadar 2 satır, daha fazlası 3 satır).
+#
+#   baslik    kutudaki ad (zorunlu)
+#   aciklama  altındaki küçük yazı
+#   ikon      lock mic camera volume terminal globe folder spotify code gamepad steam discord firefox chrome
+#             youtube github envelope calendar calculator cog power moon sync desktop download home bolt
+#             clipboard image video headphones star bell search keyboard file rocket tv wifi telegram
+#             whatsapp music play pause next prev
+#   id        (isteğe bağlı) kalıcı kimlik; yazılmazsa başlıktan üretilir
+#
+# Ne yapacağı (biri seçilir):
+#   uygulama = "Terminal"                 Başlat menüsü uygulamasını aç / açıksa öne getir
+#   komut    = ["notepad.exe", "C:/not.txt"]  program çalıştır (kabuk YOK; her argüman ayrı; konsol penceresi açılmaz)
+#   adres    = "https://github.com"       varsayılan tarayıcıda / programda aç (ms-settings:, steam://, file:// da olur)
+#   ozel     = "lock" | "mic" | "mute" | "screenshot"   (screenshot = Win+PrtScn: Resimler\Ekran Görüntüleri)
+#   medya    = "play_pause" | "next" | "prev"
+#   makro    = [ {uygulama = "spotify"}, {bekle = 1.5}, {medya = "play_pause"} ]   adımları sırayla yapar
+#
+# ozel = "mic" ve "mute" kutuları açık/kapalı durumunu gösterir.
+# ---------------------------------------------------------------------------------------------------
+
+[[kisayol]]
+baslik = "Ekranı kilitle"
+aciklama = "Win+L"
+ikon = "lock"
+ozel = "lock"
+
+[[kisayol]]
+baslik = "Mikrofon"
+ikon = "mic"
+ozel = "mic"
+
+[[kisayol]]
+baslik = "Ekran görüntüsü"
+aciklama = "Resimler klasörüne"
+ikon = "camera"
+ozel = "screenshot"
+
+[[kisayol]]
+baslik = "Sesi kapat"
+ikon = "volume"
+ozel = "mute"
+
+[[kisayol]]
+baslik = "Terminal"
+aciklama = "Windows Terminal"
+ikon = "terminal"
+uygulama = "Terminal"
+
+[[kisayol]]
+baslik = "GitHub"
+aciklama = "tarayıcıda"
+ikon = "github"
+adres = "https://github.com"
+
+[[kisayol]]
+baslik = "Dosyalar"
+aciklama = "Dosya Gezgini"
+ikon = "folder"
+uygulama = "Microsoft.Windows.Explorer"
+
+[[kisayol]]
+baslik = "Ayarlar"
+aciklama = "Windows ayarları"
+ikon = "cog"
+adres = "ms-settings:"
+
+# Örnek makro (açmak için başlarındaki # işaretlerini silin):
+# [[kisayol]]
+# baslik = "Müzik başlat"
+# aciklama = "Spotify + çal"
+# ikon = "play"
+# makro = [ {uygulama = "spotify"}, {bekle = 2}, {medya = "play_pause"} ]

@@ -53,6 +53,22 @@
 **Takma notu:** İlk denemede kart yanlış girişe takılıydı. USB tanıma yarıda kaldı: çekirdek logunda
 sadece "new full-speed USB device" satırı çıktı. "USB-UART" girişine takınca hemen tanındı.
 
+**2026-11-20 (Windows 11, aynı bilgisayar):**
+- Kart Windows'un kendi CDC sürücüsüyle ("USB Seri Cihaz", usbser) **COM4** olarak görünüyor, `1A86:55D3`,
+  seri no Linux'takiyle aynı. WCH sürücüsü kurmak gerekmedi. COM3 = Allwinner `1F3A:0008` (Linux'taki
+  `/dev/ttyACM0`), dokunma. Servis portu VID:PID ile kendisi bulur.
+- Windows'ta port açılınca kart çoğu zaman yeniden başlıyor (otomatik reset devresi, DTR/RTS). Zararsız: kart
+  "merhaba" deyince servis her şeyi yeniden gönderir.
+- **Windows'un USB-seri sürücüsü baytları boşluksuz basıyor**: 115 KB ≈1,27 sn (Linux ≈1,5 sn). Kart o sırada
+  meşgulse UART tamponu taşıp birkaç bayt düşüyordu (ör. `115183 / 115200`). Servis Windows'ta ikili blokları
+  hattın %85'i hızında gönderiyor (bkz. `kararlar.md` 2026-11-20). Elektriksel bir sorun değil.
+- NVML (RTX 5080) Windows sürücüsüyle de çalışıyor: yük, sıcaklık, VRAM, güç, fan, saat.
+
+### Windows'ta CPU sıcaklığı
+Windows, Ryzen sıcaklığını sürücüsüz vermiyor. Servis, **LibreHardwareMonitor** açıksa onun WMI sağlayıcısından
+(`root\LibreHardwareMonitor`, "Core (Tctl/Tdie)") okur; kapalıysa kartta CPU sıcaklığı "-" görünür, gerisi çalışır.
+Kurulum ve her açılışta başlatma: plandaki Faz 8 [SEN] adımı.
+
 ## Kaynaklar
 - Waveshare wiki: ESP32-S3-Touch-LCD-4.3 sayfası (Faz 1'de bağlantı eklenecek)
 - Espressif `ESP32_Display_Panel` kütüphanesi (bu kartı hazır destekliyor)

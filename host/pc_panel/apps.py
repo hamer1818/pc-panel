@@ -145,16 +145,23 @@ def icon_bytes(app: App) -> bytes | None:
     """64×64 LVGL TRUE_COLOR_ALPHA (RGB565 LE + A) ya da None."""
     path = find_icon(app.icon_name)
     img = _load_image(path) if path else None
-    if img is None:
-        return None
+    return encode_icon(img) if img is not None else None
+
+
+def encode_icon(img: Image.Image) -> bytes:
+    """Herhangi bir resim → 64×64 LVGL TRUE_COLOR_ALPHA (ortalanmış, oran korunur). Windows tarafı da kullanır."""
     img = img.convert("RGBA")
     img.thumbnail((ICON_PX, ICON_PX), Image.LANCZOS)
     canvas = Image.new("RGBA", (ICON_PX, ICON_PX), (0, 0, 0, 0))
     canvas.paste(img, ((ICON_PX - img.width) // 2, (ICON_PX - img.height) // 2))
-    out = bytearray()
-    for r, g, b, a in canvas.getdata():
+    raw = canvas.tobytes()  # RGBA RGBA … (getdata() Pillow 14'te kalkıyor)
+    out = bytearray(ICON_PX * ICON_PX * 3)
+    j = 0
+    for i in range(0, len(raw), 4):
+        r, g, b, a = raw[i], raw[i + 1], raw[i + 2], raw[i + 3]
         v = ((r & 0xF8) << 8) | ((g & 0xFC) << 3) | (b >> 3)
-        out += bytes((v & 0xFF, v >> 8, a))
+        out[j], out[j + 1], out[j + 2] = v & 0xFF, v >> 8, a
+        j += 3
     return bytes(out)
 
 
