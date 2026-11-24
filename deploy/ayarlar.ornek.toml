@@ -17,6 +17,12 @@ acik = true
 kilitliyken = false      # PC kilitliyken bildirimler karta gelmesin (başkası okumasın)
 sure_sn = 6              # kartta kaç saniye kalsın
 haric = ["Spotify"]      # bu uygulamaların bildirimleri gösterilmez (şarkı bilgisi zaten Medya sayfasında)
+                         # KDE Connect'in telefondan aktardığı bildirimlerde telefondaki uygulama adına da bakılır
+
+[medya]
+# Panel önce bu bilgisayarda çalan çaları seçer; KDE Connect ile bağlı telefonun çaları ancak burada bir şey
+# çalmıyorsa öne geçer. Bir çaları tamamen gizlemek için adını ya da bus adının bir parçasını yazın:
+yoksay = []              # ör. ["kdeconnect"] (telefonun bütün çalarları) ya da ["<telefonun adı>"]
 
 [uyari]
 # Bu değerler aşılınca üst şeritte kırmızı uyarı çıkar (5 birim düşünce kaybolur). 0: kapalı.

@@ -57,6 +57,7 @@ class SerialLink:
         self._loop: asyncio.AbstractEventLoop | None = None
         self._lock = threading.Lock()
         self._busy_warned = False
+        self._lost_reason = ""
         self._outq: queue.Queue[bytes] | None = None
         self.generation = 0  # her yeni bağlantıda artar (ör. kapak resmini yeniden göndermek için)
 
@@ -98,7 +99,8 @@ class SerialLink:
         while self.ser is ser:
             try:
                 data = ser.read(4096)
-            except (serial.SerialException, OSError, TypeError):
+            except (serial.SerialException, OSError, TypeError) as e:
+                self._lost_reason = f"okuma: {e}"
                 break
             if not data:
                 continue
@@ -123,7 +125,8 @@ class SerialLink:
                     self._write_paced(ser, data)
                 else:
                     ser.write(data)
-            except (serial.SerialException, serial.SerialTimeoutException, OSError, TypeError):
+            except (serial.SerialException, serial.SerialTimeoutException, OSError, TypeError) as e:
+                self._lost_reason = f"yazma: {e}"
                 self._loop.call_soon_threadsafe(self._lost, ser)
                 return
 
@@ -154,7 +157,8 @@ class SerialLink:
             ser.close()
         except Exception:
             pass
-        self.log("kart bağlantısı koptu, yeniden denenecek")
+        reason, self._lost_reason = self._lost_reason, ""
+        self.log(f"kart bağlantısı koptu ({reason or 'neden bilinmiyor'}), yeniden denenecek")
 
     def send(self, obj: dict, payload: bytes = b"") -> bool:
         """JSON satırını (ve varsa hemen ardından ikili veriyi) yazma kuyruğuna koyar; beklemez."""

@@ -86,6 +86,7 @@ class Settings:
     notif_locked: bool = False
     notif_secs: int = 6
     notif_exclude: frozenset[str] = frozenset({"spotify"})
+    media_ignore: frozenset[str] = frozenset()
     warn_cpu: float = 90
     warn_gpu: float = 85
     warn_ram: float = 95
@@ -245,6 +246,13 @@ def parse(data: dict) -> tuple[Settings, list[str]]:
         s.notif_exclude = frozenset(x.casefold() for x in excl)
     else:
         warn.append("bildirim.haric bir yazı listesi olmalı")
+
+    m = data.get("medya", {})
+    ign = m.get("yoksay", [])
+    if isinstance(ign, list) and all(isinstance(x, str) for x in ign):
+        s.media_ignore = frozenset(x.casefold() for x in ign if x.strip())
+    else:
+        warn.append("medya.yoksay bir yazı listesi olmalı")
 
     u = data.get("uyari", {})
     s.warn_cpu = _num(u, "cpu_sicaklik", s.warn_cpu, warn, 0, 150)

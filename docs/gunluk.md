@@ -2,6 +2,29 @@
 
 En yeni kayıt en üstte.
 
+## 2026-11-24 — Hata: panel "donuyor", Spotify güncellenmiyor, durdur çalışmıyor
+- Kullanıcı: bazen ekran donuyor, eski şarkı kalıyor, durdur düğmesi çalışmıyor.
+- İnceleme: servis 7 günde hiç "kart sessiz" uyarısı vermemiş → kartın ana döngüsü takılmıyor. 9 "bağlantı koptu"
+  kaydı var ama çekirdek log'unda USB kopması yok. Kart günlüğü (20 sn `--debug`) temiz, kart 6 saattir açık.
+- **Asıl neden:** etkin çalar, bilgisayardaki Spotify değil KDE Connect üzerinden telefondaki "Spotify - <telefon>"
+  idi (Spotify Connect ikisinde de aynı şarkıyı "çalıyor" gösteriyor; telefon yeniden bağlanınca öne geçiyordu).
+  Telefonun bilgisi gecikmeli ve uykudayken komut almıyor → eski şarkı + boşa giden düğmeler.
+- **Ek neden:** bir günde 271 "KDE Bağlan" bildirimi (telefondaki Spotify'ın şarkı bildirimleri) Medya sayfasının
+  üstünü her şarkıda 6 sn kapatıyordu; `haric = ["Spotify"]` uygulama adı farklı olduğu için süzmüyordu.
+- **Üçüncü bulgu:** servis yeniden başlayınca 10 ikonun 2–3'ü ilk seferde bozuk geliyordu (CRC); 15:34'teki
+  kopmalarda da kapak/ikon hataları vardı. Neden: UART FIFO taşması (bkz. `01-donanim.md`).
+- Düzeltmeler (bkz. `kararlar.md`, üç kayıt):
+  - `media.py`: bilgisayardaki çalar öncelikli, `[medya] yoksay` ayarı, boştayken gerçek parçası olan çalar.
+  - `__main__.py`: KDE Connect bildirimlerinde başlığa da `haric` uygulanıyor; kalp atışındaki taşma sayaçları
+    artınca günlüğe yazılıyor. `link.py`: kopma nedeni günlüğe yazılıyor (önceden yazılmıyordu).
+  - Kart 0.11.1: UART kesmesi çekirdek 0, `setRxFIFOFull(32)`, taşma sayacı `hb.ovf` / `hb.full`.
+  - `deploy/ayarlar.ornek.toml`: `[medya]` bölümü.
+- Deneme: etkin çalar artık bilgisayardaki Spotify; `yoksay = ["p20 pro"]` ile telefon listeden çıkıyor; ayar
+  hatalı yazılınca uyarı veriyor. 0.11.1 yüklendi: 3 bağlanma denemesinde ikonların 10/10'u ilk seferde ulaştı,
+  taşma 0; servis yeniden başlatıldı, kapak + ikonlar birlikte gitti, hata yok.
+- Doğrulanmadı: kullanıcının gerçek kullanımında donmanın bir daha olmaması (zamanla görülecek). Kullanıcının kendi
+  `~/.config/pc-panel/ayarlar.toml` dosyasına `[medya]` bölümü eklenmedi (varsayılan boş liste yeterli).
+
 ## 2026-11-20 — Faz 8: Windows 11 desteği
 - Kullanıcı: bilgisayarda CachyOS ve Windows 11 ikisi de var; Windows'ta kartta hiçbir değer gelmiyor. İstek: proje
   iki sistemde de düzgün çalışsın. Bu oturum Windows'ta (depo: `C:\Users\Hamza\Desktop\projeler\pc-panel`).
@@ -36,6 +59,24 @@ En yeni kayıt en üstte.
   **Faz 8 Windows tarafı tamamlandı.** Commit atıldı ve GitHub'a gönderildi.
 - **Sıradaki:** CachyOS'a geçince `cd host && uv sync` (kilit dosyası değişti) ve kısa bir kontrol;
   istenirse LibreHardwareMonitor (Windows'ta CPU °C).
+
+## 2026-11-18 — Kasa tasarımı (kasa/)
+- Kullanıcı: 3D baskı kasa; en iyi soğutma ve masada eğik durma. Hazır modeller bulundu (MakerWorld 374370,
+  2982581) ama sayfaları otomatik okunamadı; kullanıcı kendimiz tasarlamayı seçti.
+- Waveshare 3D modeli (5,4 MB zip → 31 MB STEP, 693 parça) build123d ile okunup ölçüler çıkarıldı: M3 ayaklar,
+  USB-C yerleri, düğmeler, en derin parça (`01-donanim.md`).
+- `kasa/kasa.py`: gövde (tepsi, 4 × M3×12 ile kartın ayaklarına), stand (20°, pencereli dayanak, arka destek kolu).
+  Denetim: gövde ↔ kart 0,00 mm³, stand ↔ gövde 0,00 mm³. Blender ile önizlemeler (`kasa/onizleme/`).
+- İlk sürümde ESP32 modülünün arkasına konan dikey yarıklar yataylarla kesişip kırılgan adacıklar oluşturuyordu
+  → kaldırıldı (yatay yarıklar modülü zaten kapsıyor).
+- Basılmadı; oturma, USB fişleri ve ısınma kullanıcıda.
+- Kullanıcı vidasız montaj istedi → üst ve alt duvarda ikişer geçmeli dil (19 mm esneyen boy, kanca cama
+  ≈ 0,85–1,0 mm biner, üstü 45° pahlı). Esneme payı ≈ %0,9. Kancalar kartla çakışmıyor (0,00 mm³); alt kancaların
+  çıkıntısı standın dudağına giriyordu (72 mm³) → oturak 1,75 mm derinleştirildi, çakışma 0. Deneme çerçevesi artık
+  tabansız gövde (kancaları da dener). Vida delikleri isteğe bağlı olarak kaldı.
+- Baskıyı kullanıcının arkadaşı yapacak: STL'ler baskı yönünde dışa aktarılıyor (stand yan yatık), gövdenin ön
+  halkasından `deneme_cercevesi.stl` eklendi (oturuş / USB / düğme denemesi), `kasa/BASKI_AYARLARI.txt` notu ve
+  gönderim paketi `kasa/pc-panel-kasa-baski.zip` (git dışı) hazırlandı.
 
 ## 2026-11-17 — Açık kaynak hazırlığı ve GitHub'da yayın (kart 0.11.0)
 - Kullanıcı kararı: depo public olacak; commit e-postası kişisel Gmail yerine `info@hamza.tr`.

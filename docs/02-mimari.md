@@ -61,7 +61,10 @@ LVGL kendi görevinde çalışır. `loop()` içinden ekrana dokunmadan önce `lv
 - **Ölçüm aralığı:** varsayılan 1 sn (`--aralik`).
 - **Hız hesapları:** ağ ve disk hızı iki ölçüm arasındaki fark / geçen süre ile bulunur. Sanal ağ arayüzleri
   (lo, tailscale, virbr, docker, veth…) ve disk bölümleri sayılmaz.
-- **Etkin çalar kuralı:** çalanlar arasında en son çalmaya başlayan → yoksa en son çalan → yoksa ilk bulunan.
+- **Etkin çalar kuralı (2026-11-24):** bu bilgisayarda çalanlar arasında en son çalmaya başlayan → yoksa uzak
+  (KDE Connect, bus adında `kdeconnect`) çalarlardan çalan → hiçbiri çalmıyorsa (bu bilgisayarda mı, en son ne zaman
+  çaldı, gerçek parça mı: başlıklı ve ≥30 sn) sırasıyla en iyisi. `[medya] yoksay` listesindeki çalarlar
+  (ad ya da bus adı parçası) hiç görülmez.
 - **MPRIS okuma yöntemi:** her ölçümde `Properties.GetAll` ile yoklama (polling). Sinyal dinleme yok; her çağrıda 1 sn zaman aşımı var.
 
 Çalıştırma (`host/` klasöründe):
@@ -103,7 +106,7 @@ uv run pc-panel --konsol   # sadece terminalde göster
 | Tip | Ne zaman | Alanlar |
 |-----|----------|---------|
 | `hello` | açılışta | `fw` yazılım sürümü, `proto` protokol sürümü (1) |
-| `hb` | her 1 sn | `up` kartın çalışma süresi (sn) |
+| `hb` | her 1 sn | `up` kartın çalışma süresi (sn); **0.11.1+:** `ovf` UART FIFO taşma sayısı, `full` halka tampon dolma sayısı (artarsa bayt kaybı; servis günlüğe yazar) |
 | `cmd` | dokununca | `c`: `play_pause` / `next` / `prev` / `seek_rel` (+ `v` sn) / `seek_abs` (+ `v` sn) / **v1.1:** `vol_set` (+ `v` %) / `shortcut` (+ `id`: `lock`, `mic`, `screenshot`, `mute`, `terminal`, `browser`, `files`, `spotify`) |
 
 ### Bağlantı durumu

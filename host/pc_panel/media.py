@@ -2,9 +2,16 @@
 
 KDE'deki bütün çalarlar (Spotify, tarayıcılar, VLC, Elisa, KDE Connect...) `org.mpris.MediaPlayer2.*`
 adıyla kaydolur. Her saniye bütün çaların durumunu okuyup "etkin" olanı seçeriz:
-  1. Çalmakta olanlar arasında en son çalmaya başlayan,
-  2. hiçbiri çalmıyorsa en son çalan,
-  3. o da yoksa ilk bulunan.
+  1. Bu bilgisayarda çalmakta olanlar arasında en son çalmaya başlayan,
+  2. yoksa uzak (KDE Connect ile bağlı telefon) çalarlardan çalmakta olan,
+  3. hiçbiri çalmıyorsa en son çalan (yine önce bu bilgisayardakiler; geçmiş yoksa gerçek bir parçası olan),
+  4. o da yoksa ilk bulunan.
+
+Neden uzak çalarlar geride: Spotify Connect aynı şarkıyı hem bilgisayardaki Spotify'da hem de KDE Connect üzerinden
+telefondaki Spotify'da "çalıyor" gösterir. Telefon KDE Connect'e her yeniden bağlandığında "yeni çalmaya başlamış"
+görünüp öne geçiyordu. Bilgisi gecikmeli geldiği ve telefon uykudayken komutlara yanıt vermediği için panelde eski
+şarkı kalıyor, düğmeler boşa gidiyordu (2026-11-24). Ayar dosyasındaki `[medya] yoksay` ile çalarlar tamamen dışarıda
+bırakılabilir.
 """
 
 from __future__ import annotations
@@ -23,6 +30,17 @@ PLAYER_IFACE = "org.mpris.MediaPlayer2.Player"
 ROOT_IFACE = "org.mpris.MediaPlayer2"
 PROPS_IFACE = "org.freedesktop.DBus.Properties"
 CALL_TIMEOUT = 1.0  # takılan bir çalar bütün servisi bekletmesin
+REMOTE_MARKERS = ("kdeconnect",)  # bus adında bunlar geçen çalarlar başka bir cihazda (telefon)
+
+
+def is_remote(bus_name: str) -> bool:
+    return any(m in bus_name.casefold() for m in REMOTE_MARKERS)
+
+
+def _is_real_track(props: dict) -> bool:
+    """Başlığı olan ve en az 30 sn süren bir parça mı (bildirim sesi, boş çalar değil)."""
+    md = props.get("Metadata") or {}
+    return bool(md.get("xesam:title")) and (md.get("mpris:length") or 0) >= 30_000_000
 
 
 def _unwrap(v):
@@ -43,6 +61,14 @@ class MediaWatcher:
         self._playing_since: dict[str, float] = {}  # çalar → en son "Playing"e geçtiği an
         self._last_playing: dict[str, float] = {}   # çalar → en son "Playing" görüldüğü an
         self.active: str | None = None
+        self.ignore: frozenset[str] = frozenset()  # ayar: [medya] yoksay (küçük harf; ad ya da bus adı parçası)
+
+    def _ignored(self, name: str) -> bool:
+        if not self.ignore:
+            return False
+        ident = self._identity.get(name, "").casefold()
+        low = name.casefold()
+        return any(i in low or (ident and i in ident) for i in self.ignore)
 
     async def connect(self) -> None:
         self.bus = await MessageBus(bus_type=BusType.SESSION).connect()
@@ -83,6 +109,10 @@ class MediaWatcher:
     async def poll(self) -> dict:
         """Bütün çalarları okur; {"active": {...} | None, "players": [...]} döner."""
         names = await self._list_players()
+        if self.ignore:
+            for n in names:
+                await self._get_identity(n)  # yoksay listesi görünen adla da eşleşebilsin
+            names = [n for n in names if not self._ignored(n)]
         now = time.monotonic()
         states: dict[str, dict] = {}
         for name in names:
@@ -103,10 +133,17 @@ class MediaWatcher:
                 d.pop(gone, None)
 
         playing = [n for n in states if states[n].get("PlaybackStatus") == "Playing"]
-        if playing:
+        local_playing = [n for n in playing if not is_remote(n)]
+        if local_playing:
+            self.active = max(local_playing, key=lambda n: self._playing_since.get(n, 0))
+        elif playing:
             self.active = max(playing, key=lambda n: self._playing_since.get(n, 0))
         elif states:
-            self.active = max(states, key=lambda n: self._last_playing.get(n, 0))
+            # Hiçbiri çalmıyor: (bu bilgisayarda mı, en son ne zaman çaldı, gerçek bir parça mı). Servis yeni
+            # başladığında çalma geçmişi boştur; o zaman duraklatılmış Spotify, tarayıcıdaki 2 sn'lik WhatsApp
+            # bildirim sesinden önce gelsin.
+            self.active = max(states, key=lambda n: (not is_remote(n), self._last_playing.get(n, 0),
+                                                     _is_real_track(states[n])))
         else:
             self.active = None
 

@@ -2,6 +2,31 @@
 
 Her karar: tarih · karar · düşünülen seçenekler · neden.
 
+## 2026-11-24 · Etkin çalar: bu bilgisayardaki çalar telefona (KDE Connect) göre öncelikli
+- Sorun: Spotify Connect aynı şarkıyı hem bilgisayardaki Spotify'da hem KDE Connect üzerinden telefondaki
+  "Spotify - <telefon>"da "çalıyor" gösteriyor. "En son çalmaya başlayan" kuralı yüzünden telefon her yeniden
+  bağlandığında öne geçiyordu. Bilgisi gecikmeli geldiği, telefon uykudayken komutlara da yanıt vermediği için
+  panelde eski şarkı kalıyor, durdur düğmesi boşa gidiyordu.
+- Seçenekler: KDE Connect çalarlarını hep yok saymak · bilgisayardakini öncelikli tutmak · yalnızca ayarla seçmek
+- Karar: bilgisayardaki çalar öncelikli (telefon yalnızca burada bir şey çalmıyorsa); isteyen `[medya] yoksay` ile
+  tamamen gizler. Böylece telefonda tek başına müzik dinlerken panelden kontrol etme özelliği de korunuyor.
+- Ek: hiçbir şey çalmıyorken ve geçmiş yokken (servis yeni başladı) gerçek parçası olan çalar seçilir; tarayıcıdaki
+  2 sn'lik WhatsApp bildirim sesi Spotify'ın önüne geçmesin.
+
+## 2026-11-24 · KDE Connect bildirimlerinde `haric` telefondaki uygulama adına da uygulanır
+- KDE Connect bildirimleri uygulama adı "KDE Bağlan" (KDE Connect) ile, başlığı telefondaki uygulama adı olarak
+  gelir. Telefondaki Spotify'ın "şimdi çalıyor" bildirimi her şarkıda Medya sayfasının üstünü 6 sn kapatıyordu
+  (bir günde 271 bildirim). `haric = ["Spotify"]` artık bunları da süzüyor.
+
+## 2026-11-24 · Kart: UART kesmesi çekirdek 0'da, FIFO eşiği 32, taşma sayacı (0.11.1)
+- Sorun ve ölçüm: `01-donanim.md` "Seri alım ve bayt kaybı".
+- Seçenekler: baud'u düşürmek (kapak 2,5 sn'ye çıkar) · donanım akış denetimi (kartta RTS/CTS hattı yok) ·
+  kesmeyi ekran kesmesinden ayırıp FIFO'yu erken boşaltmak
+- Karar: sonuncusu; hız korunuyor, kanıt için taşma sayacı kalp atışında.
+- İlişki: Windows'ta aynı bayt kaybı (2026-11-20) bilgisayar tarafında büyük blokları yavaşlatarak çözülmüştü
+  (aşağıda "Windows'ta ikili bloklar yavaşlatılır"). 0.11.1'deki kart tarafı düzeltmesi iki işletim sisteminde de
+  geçerli; Windows'taki yavaşlatma ek güvenlik payı olarak kaldı.
+
 ## 2026-11-20 · Faz 8: tek kod tabanı, iki işletim sistemi (Linux + Windows 11)
 - İstek: bilgisayarda CachyOS ve Windows 11 ikisi de var; Windows açılınca kartta hiçbir değer gelmiyordu
   (servis Windows'ta hiç başlayamıyordu: `dbus_fast`, `os.getuid`, Unix soketi, `add_signal_handler`, `wpctl`…).
@@ -70,6 +95,19 @@ Her karar: tarih · karar · düşünülen seçenekler · neden.
   tanınır yapıyor. İkonlar kartta saklanmıyor, her bağlantıda bilgisayardan gönderiliyor (≈1,5 sn); yazı tipine
   derlenseydi her yeni uygulama için kart yazılımı yeniden yüklenmeliydi.
 - Uygulama ayar dosyasında yalnızca `.desktop` kimliğiyle yazılıyor; ad ve ikon oradan geliyor, ad isteğe göre kısaltılabiliyor.
+
+## 2026-11-18 · Kasa: kendi tasarımımız, build123d, ön çerçevesiz tepsi + ayrı stand
+- Seçenekler: hazır modeller (MakerWorld 374370 / 2982581; içerikleri ve USB-UART erişimi doğrulanamadı) ·
+  OpenSCAD (kurulu değil, sudo ister) · build123d (Python, `uv` ile kullanıcı alanında).
+- Neden build123d: Waveshare'in STEP modelini doğrudan okuyup ölçü çıkarmak ve tasarımı modelle çakışma
+  denetiminden geçirmek mümkün; parametrik, STL + STEP üretiyor.
+- (Güncelleme, aynı gün: kullanıcı vidasız istedi → kart üst/alt duvardaki geçmeli kancalarla tutuluyor, vida
+  delikleri isteğe bağlı. Kanca camın siyah kenarına ≈1 mm biner; dil 19 mm, esneme ≈ %0,9.)
+- Tasarım: kartın kendi 4 × M3 dişi ayağına arkadan vidalanan tepsi (ön çerçeve yok; cam önden görünür, duvar
+  camdan 0,4 mm önde). Ön çerçeve olsaydı ayaklar camın arkasında kaldığı için vidalar önden takılamazdı ve
+  çerçeveyi tutacak ayrı bir bağlantı gerekirdi. Stand ayrı parça: tepsi arkası düz basılabilsin, eğim
+  değiştirilebilsin. Pasif soğutma: 3 mm arka hava katmanı + alt/üst duvar yarıkları (baca) + arka yarıklar;
+  fan yok (1–2 W).
 
 ## 2026-11-17 · Açık kaynak (MIT) ve commit e-postası info@hamza.tr
 - Kullanıcı kararı: GitHub'da public. Depoda gizli bilgi yok (sunucu IP'si ve kişisel ayarlar yalnızca

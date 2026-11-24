@@ -69,6 +69,25 @@ Windows, Ryzen sıcaklığını sürücüsüz vermiyor. Servis, **LibreHardwareM
 (`root\LibreHardwareMonitor`, "Core (Tctl/Tdie)") okur; kapalıysa kartta CPU sıcaklığı "-" görünür, gerisi çalışır.
 Kurulum ve her açılışta başlatma: plandaki Faz 8 [SEN] adımı.
 
+## Seri alım ve bayt kaybı (2026-11-24, kart 0.11.1)
+- UART0 donanım FIFO'su 128 bayt: 921600 baud'da ≈1,4 ms'de dolar. Arduino'nun varsayılan "FIFO dolu" eşiği yüksek
+  olduğu için kesme çok geç geliyordu. Kesme, RGB ekranın PSRAM'den kopyalama yapan bounce-buffer kesmesiyle aynı
+  çekirdekteydi (1). Kapak ve ikon gibi uzun ikili bloklarda bayt kaçıyor, CRC tutmuyordu.
+- 0.11.1: UART sürücüsü çekirdek 0'da bir görevden kuruluyor (kesme çekirdek 0'a bağlanır), `setRxFIFOFull(32)`.
+  `onReceiveError` ile `UART_FIFO_OVF_ERROR` / `UART_BUFFER_FULL_ERROR` sayılıp kalp atışında gönderiliyor.
+- Ölçüm: önceden servis yeniden başlayınca 10 ikonun 2–3'ü ilk seferde bozuk geliyordu. 0.11.1 ile 3 denemede
+  10/10 ilk seferde ulaştı, taşma sayacı 0 kaldı; ardından kapak ve ikonlar birlikte gönderildi, yine hata yok.
+- Yukarıdaki Windows notundaki "UART tamponu taşıp birkaç bayt düşüyordu" gözlemi de aynı kök nedene dayanıyor.
+  Orada bilgisayar tarafında yavaşlatmayla çözülmüştü; 0.11.1 kart tarafında çözüyor.
+
 ## Kaynaklar
 - Waveshare wiki: ESP32-S3-Touch-LCD-4.3 sayfası (Faz 1'de bağlantı eklenecek)
 - Espressif `ESP32_Display_Panel` kütüphanesi (bu kartı hazır destekliyor)
+
+## Mekanik ölçüler (Waveshare 3D modelinden, 2026-11-18)
+- Dış sınır 106,1 × 68,3 mm (üst kenardaki düğmeler dahil); camın ön yüzü PCB arka yüzünden 8,5 mm önde.
+- 4 × M3 dişi ayak (Ø5,5, PCB arkasından 4 mm), delikler Ø4,3; merkezler arası 98 × 60 mm.
+- İki USB-C sağ kenarda, PCB arkasına gömülü (merkez y = 18,6 ve −1,4 mm modele göre; z merkezi PCB arka yüzünden 1,2 mm geride).
+- Üst kenarda yandan basılan iki düğme (BOOT / RESET olması muhtemel), x = 4,7 ve −6,5 mm.
+- En derin parça: sol kenardaki vidalı terminaller, PCB arka yüzünden 8,4 mm.
+- Ayrıntı ve kasa: `kasa/kasa.py`.

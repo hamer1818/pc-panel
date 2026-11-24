@@ -56,6 +56,10 @@ USAGE_EVERY_S = 60
 GIT_EVERY_S = 300
 
 
+def is_kdeconnect_notif(n: dict) -> bool:
+    return "kdeconnect" in n["entry"].casefold() or n["app"].casefold() in ("kde connect", "kde bağlan")
+
+
 def log(msg: str) -> None:
     print(f"[{time.strftime('%H:%M:%S')}] {msg}", flush=True)
 
@@ -84,6 +88,7 @@ async def serve(args: argparse.Namespace, media: MediaWatcher) -> int:
     claude = ClaudeTracker()
     # Uygulamalar: ayar değişince arka planda çözülür (ad + ikon); hazır olunca karta gönderilir
     apps_state = {"version": -1, "apps": [], "icons": [], "sent": None, "task": None, "icon_task": None}
+    rx_lost = {"last": 0}  # kartın bildirdiği toplam taşma sayısı
     icon_acks: dict[int, asyncio.Future] = {}  # ikon sırası → kartın {"t":"icon","ok":…} yanıtı
     # İkili bloklar (kapak, ikonlar) hiçbir zaman üst üste gönderilmez: biri gider, kartın onayı beklenir, sonra
     # diğeri. Kart sayfa kurarken (tiles / apps) de bir an beklenir. Aksi hâlde kartın UART tamponu taşabiliyor.
@@ -190,6 +195,11 @@ async def serve(args: argparse.Namespace, media: MediaWatcher) -> int:
         if not s.notif_on or not link.connected or (ui_state["locked"] and not s.notif_locked):
             return
         if n["app"].casefold() in s.notif_exclude or (n["entry"] and n["entry"].casefold() in s.notif_exclude):
+            return
+        # KDE Connect telefon bildirimlerini "KDE Connect"/"KDE Bağlan" adıyla aktarır; başlık telefondaki uygulamanın
+        # adıdır (ör. "Spotify"). haric listesi onlara da uygulansın: yoksa telefonun "şimdi çalıyor" bildirimi her
+        # şarkıda Medya sayfasının üstünü kaplıyordu (2026-11-24).
+        if is_kdeconnect_notif(n) and n["title"].casefold() in s.notif_exclude:
             return
         if not (n["title"] or n["body"]):
             return
@@ -370,6 +380,7 @@ async def serve(args: argparse.Namespace, media: MediaWatcher) -> int:
         art_state["task"] = asyncio.create_task(push_art(key, url))
 
     async def send_media() -> None:
+        media.ignore = config.settings.media_ignore  # ayar canlı değişebilir
         state = await media.poll()
         send(media_message(state))
         active = state.get("active")
@@ -451,6 +462,13 @@ async def serve(args: argparse.Namespace, media: MediaWatcher) -> int:
             elif kind == "hb":
                 if args.debug:
                     log(f"kart: kalp atışı, açık {msg.get('up')} sn")
+                # Kartın seri alım taşma sayaçları (0.11.1+): artarsa bayt kaçmış demektir
+                lost = (msg.get("ovf") or 0) + (msg.get("full") or 0)
+                if lost < rx_lost["last"]:
+                    rx_lost["last"] = 0  # kart yeniden başlamış
+                if lost > rx_lost["last"]:
+                    log(f"kart: seri alımda bayt kaybı (FIFO taşması {msg.get('ovf')}, tampon dolu {msg.get('full')})")
+                    rx_lost["last"] = lost
             elif kind == "cmd":
                 cmd, val = msg.get("c"), msg.get("v")
                 if cmd in MEDIA_COMMANDS:

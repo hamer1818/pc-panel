@@ -21,7 +21,7 @@
 using namespace esp_panel::drivers;
 using namespace esp_panel::board;
 
-#define FW_VERSION "0.11.0"
+#define FW_VERSION "0.11.1"
 #define PROTO_VERSION 1
 #define LINK_BAUD 921600
 #define LINK_TIMEOUT_MS 3000
@@ -246,10 +246,39 @@ static void poll_serial()
     }
 }
 
-void setup()
+// --- Seri port: kesme çekirdek 0'da, erken boşaltma, taşma sayacı (0.11.1, bkz. docs/gunluk.md 2026-11-24) ---
+// Sorun: UART kesmesi, RGB ekranın PSRAM'den kopyalama yapan "bounce buffer" kesmesiyle aynı çekirdekteydi (1) ve
+// donanım FIFO'su (128 bayt) neredeyse dolmadan boşaltılmıyordu. 921600 baud'da FIFO 1,4 ms'de dolar; kapak/ikon
+// gibi uzun ikili bloklarda bayt kaçıyor, CRC tutmuyor, ardından gelen satırlar da bloğun içine yutuluyordu.
+static volatile uint32_t rx_fifo_ovf = 0;    // donanım FIFO'su taştı (bayt kaybı)
+static volatile uint32_t rx_buf_full = 0;    // yazılım halka tamponu doldu (bayt kaybı)
+static TaskHandle_t setup_task = nullptr;
+
+static void on_rx_error(hardwareSerial_error_t err)
 {
+    if (err == UART_FIFO_OVF_ERROR) {
+        rx_fifo_ovf++;
+    } else if (err == UART_BUFFER_FULL_ERROR) {
+        rx_buf_full++;
+    }
+}
+
+static void serial_init_task(void *)
+{
+    // uart_driver_install kesmeyi çağrıldığı çekirdeğe bağlar: burası çekirdek 0, ekran ve LVGL çekirdek 1'de
     Serial.setRxBufferSize(32768);  // kart sayfa kurarken (LVGL kilidi) gelen veri taşmasın
     Serial.begin(LINK_BAUD);
+    Serial.setRxFIFOFull(32);       // 32 bayt gelince boşalt: 96 bayt (≈1 ms) pay kalır
+    Serial.onReceiveError(on_rx_error);
+    xTaskNotifyGive(setup_task);
+    vTaskDelete(nullptr);
+}
+
+void setup()
+{
+    setup_task = xTaskGetCurrentTaskHandle();
+    xTaskCreatePinnedToCore(serial_init_task, "serial_init", 4096, nullptr, 5, nullptr, 0);
+    ulTaskNotifyTake(pdTRUE, portMAX_DELAY);
     Serial.println("# pc-panel basliyor");
 
     art_rx = static_cast<uint8_t *>(heap_caps_malloc(ART_BYTES, MALLOC_CAP_SPIRAM));
@@ -299,7 +328,9 @@ void loop()
 
     if (now - last_hb >= HEARTBEAT_MS) {
         last_hb = now;
-        Serial.printf("{\"t\":\"hb\",\"up\":%lu,\"fw\":\"%s\"}\n", static_cast<unsigned long>(now / 1000), FW_VERSION);
+        Serial.printf("{\"t\":\"hb\",\"up\":%lu,\"fw\":\"%s\",\"ovf\":%lu,\"full\":%lu}\n",
+                      static_cast<unsigned long>(now / 1000), FW_VERSION, static_cast<unsigned long>(rx_fifo_ovf),
+                      static_cast<unsigned long>(rx_buf_full));
     }
 
     // Ekran durumu (bkz. docs/kararlar.md "Ekran karartma" ve "Kilit saati")
